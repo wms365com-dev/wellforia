@@ -469,11 +469,15 @@
     <button onclick="recalc()">Recalculate</button>
     <button onclick="saveData()">Save Local</button>
     <button onclick="loadData()">Load Local</button>
+    <button class="ghost" onclick="saveRemoteData()">Save Railway</button>
+    <button class="ghost" onclick="loadRemoteData()">Load Railway</button>
     <button onclick="exportCSV()">Export CSV</button>
     <button class="warn" onclick="resetToSeed()">Reload Uploaded SKU Data</button>
     <button class="danger" onclick="clearAllRows()">Clear Rows</button>
     <button class="ghost" onclick="printInvoice()">Print Invoice Summary</button>
   </div>
+
+  <div id="remoteStatus" class="status warn" style="display:inline-flex;max-width:100%;margin-bottom:18px;">Checking Railway database connection...</div>
 
   <div class="tabs">
     <button class="tab-btn" type="button" data-tab="data">Data Intake</button>
@@ -742,7 +746,10 @@ const state = {
   itemMaster: [],
   stockRows: [],
   intakeDirty: false,
-  intakeSyncTimer: null
+  intakeSyncTimer: null,
+  remoteEnabled: false,
+  remoteChecked: false,
+  remoteSyncTimer: null
 };
 
 function toNum(v) {
@@ -830,7 +837,10 @@ function createInput(value, cls, type = 'text', step = 'any') {
   input.className = cls;
   input.type = type;
   if (type === 'number') input.step = step;
-  input.addEventListener('input', recalc);
+  input.addEventListener('input', () => {
+    recalc();
+    scheduleRemoteSave('calculator edit');
+  });
   return input;
 }
 
@@ -868,6 +878,7 @@ function addRow(row = {}, skipRecalc = false) {
     event.stopPropagation();
     tr.remove();
     recalc();
+    scheduleRemoteSave('calculator delete');
   });
 
   tr.addEventListener('click', (event) => {
@@ -906,12 +917,12 @@ function renderItemMasterTable() {
   state.itemMaster.forEach((row, index) => {
     const tr = document.createElement('tr');
     const fields = [
-      createBoundInput(row.product || '', (value) => { state.itemMaster[index].product = value; updateIntakeSummary(); scheduleIntakeBuild('item master edit'); }),
-      createBoundInput(row.sku || '', (value) => { state.itemMaster[index].sku = value; updateIntakeSummary(); scheduleIntakeBuild('item master edit'); }),
-      createBoundInput(row.lcm ?? 0, (value) => { state.itemMaster[index].lcm = toNum(value); updateIntakeSummary(); scheduleIntakeBuild('item master edit'); }, 'number', '0.01'),
-      createBoundInput(row.wcm ?? 0, (value) => { state.itemMaster[index].wcm = toNum(value); updateIntakeSummary(); scheduleIntakeBuild('item master edit'); }, 'number', '0.01'),
-      createBoundInput(row.hcm ?? 0, (value) => { state.itemMaster[index].hcm = toNum(value); updateIntakeSummary(); scheduleIntakeBuild('item master edit'); }, 'number', '0.01'),
-      createBoundInput(row.notes || '', (value) => { state.itemMaster[index].notes = value; updateIntakeSummary(); scheduleIntakeBuild('item master edit'); })
+      createBoundInput(row.product || '', (value) => { state.itemMaster[index].product = value; updateIntakeSummary(); scheduleIntakeBuild('item master edit'); scheduleRemoteSave('item master edit'); }),
+      createBoundInput(row.sku || '', (value) => { state.itemMaster[index].sku = value; updateIntakeSummary(); scheduleIntakeBuild('item master edit'); scheduleRemoteSave('item master edit'); }),
+      createBoundInput(row.lcm ?? 0, (value) => { state.itemMaster[index].lcm = toNum(value); updateIntakeSummary(); scheduleIntakeBuild('item master edit'); scheduleRemoteSave('item master edit'); }, 'number', '0.01'),
+      createBoundInput(row.wcm ?? 0, (value) => { state.itemMaster[index].wcm = toNum(value); updateIntakeSummary(); scheduleIntakeBuild('item master edit'); scheduleRemoteSave('item master edit'); }, 'number', '0.01'),
+      createBoundInput(row.hcm ?? 0, (value) => { state.itemMaster[index].hcm = toNum(value); updateIntakeSummary(); scheduleIntakeBuild('item master edit'); scheduleRemoteSave('item master edit'); }, 'number', '0.01'),
+      createBoundInput(row.notes || '', (value) => { state.itemMaster[index].notes = value; updateIntakeSummary(); scheduleIntakeBuild('item master edit'); scheduleRemoteSave('item master edit'); })
     ];
     fields.forEach((input) => {
       const td = document.createElement('td');
@@ -925,6 +936,7 @@ function renderItemMasterTable() {
       renderItemMasterTable();
       updateIntakeSummary();
       scheduleIntakeBuild('item master delete');
+      scheduleRemoteSave('item master delete');
     });
     tr.appendChild(deleteTd);
     tbody.appendChild(tr);
@@ -942,10 +954,10 @@ function renderStockTable() {
   state.stockRows.forEach((row, index) => {
     const tr = document.createElement('tr');
     const fields = [
-      createBoundInput(row.sku || '', (value) => { state.stockRows[index].sku = value; updateIntakeSummary(); scheduleIntakeBuild('stock edit'); }),
-      createBoundInput(row.product || '', (value) => { state.stockRows[index].product = value; updateIntakeSummary(); scheduleIntakeBuild('stock edit'); }),
-      createBoundInput(row.boxes ?? 0, (value) => { state.stockRows[index].boxes = toNum(value); updateIntakeSummary(); scheduleIntakeBuild('stock edit'); }, 'number', '1'),
-      createBoundInput(row.notes || '', (value) => { state.stockRows[index].notes = value; updateIntakeSummary(); scheduleIntakeBuild('stock edit'); })
+      createBoundInput(row.sku || '', (value) => { state.stockRows[index].sku = value; updateIntakeSummary(); scheduleIntakeBuild('stock edit'); scheduleRemoteSave('stock edit'); }),
+      createBoundInput(row.product || '', (value) => { state.stockRows[index].product = value; updateIntakeSummary(); scheduleIntakeBuild('stock edit'); scheduleRemoteSave('stock edit'); }),
+      createBoundInput(row.boxes ?? 0, (value) => { state.stockRows[index].boxes = toNum(value); updateIntakeSummary(); scheduleIntakeBuild('stock edit'); scheduleRemoteSave('stock edit'); }, 'number', '1'),
+      createBoundInput(row.notes || '', (value) => { state.stockRows[index].notes = value; updateIntakeSummary(); scheduleIntakeBuild('stock edit'); scheduleRemoteSave('stock edit'); })
     ];
     fields.forEach((input) => {
       const td = document.createElement('td');
@@ -959,6 +971,7 @@ function renderStockTable() {
       renderStockTable();
       updateIntakeSummary();
       scheduleIntakeBuild('stock delete');
+      scheduleRemoteSave('stock delete');
     });
     tr.appendChild(deleteTd);
     tbody.appendChild(tr);
@@ -1092,6 +1105,7 @@ function buildCalculatorRowsFromIntake(options = {}) {
   }
   updateIntakeSummary();
   setImportStatus(`Built ${mergedRows.length} calculator rows from intake data.`, 'good');
+  scheduleRemoteSave('rebuild calculator rows');
   if (openTarget) openTab(openTarget);
   else if (openCalculator) openTab('calc');
   return true;
@@ -1405,6 +1419,102 @@ function saveData() {
   alert('Saved locally in this browser.');
 }
 
+function setRemoteStatus(text, tone) {
+  const el = document.getElementById('remoteStatus');
+  if (!el) return;
+  el.className = `status ${tone}`;
+  el.textContent = text;
+}
+
+async function requestJson(url, options = {}) {
+  const response = await fetch(url, options);
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload.ok === false) {
+    throw new Error(payload && payload.message ? payload.message : `Request failed (${response.status})`);
+  }
+  return payload;
+}
+
+function applyPersistedState(payload) {
+  setSettings(payload.settings || {});
+  state.selectedIndex = payload.selectedIndex || 0;
+  state.itemMaster = Array.isArray(payload.itemMaster) ? payload.itemMaster : itemRowsFromCalculatorRows(payload.rows || []);
+  state.stockRows = Array.isArray(payload.stockRows) ? payload.stockRows : stockRowsFromCalculatorRows(payload.rows || []);
+  renderItemMasterTable();
+  renderStockTable();
+  state.intakeDirty = false;
+  updateIntakeSummary();
+  renderRows(payload.rows || []);
+}
+
+async function loadRemoteData(options = {}) {
+  const quiet = Boolean(options.quiet);
+  setRemoteStatus('Loading shared data from Railway...', 'warn');
+  try {
+    const payload = await requestJson('/api/state');
+    state.remoteChecked = true;
+    state.remoteEnabled = Boolean(payload.enabled);
+
+    if (!payload.enabled) {
+      setRemoteStatus('Railway database is not connected yet. Add PostgreSQL and DATABASE_URL to enable shared saving.', 'warn');
+      return false;
+    }
+
+    if (!payload.found || !payload.state) {
+      setRemoteStatus('Railway database is ready. No shared SKU dataset has been saved yet.', 'warn');
+      return false;
+    }
+
+    applyPersistedState(payload.state);
+    setRemoteStatus(`Loaded shared data from Railway${payload.updatedAt ? ` on ${new Date(payload.updatedAt).toLocaleString()}` : ''}.`, 'good');
+    return true;
+  } catch (error) {
+    state.remoteChecked = true;
+    setRemoteStatus(`Railway load failed: ${error && error.message ? error.message : 'unknown error'}`, 'bad');
+    if (!quiet) alert('The Railway database data could not be loaded.');
+    return false;
+  }
+}
+
+async function saveRemoteData(options = {}) {
+  const quiet = Boolean(options.quiet);
+  if (state.intakeDirty) {
+    buildCalculatorRowsFromIntake({ openCalculator: false, silent: true });
+  } else if (!state.computed.length) {
+    recalc();
+  }
+
+  setRemoteStatus('Saving shared data to Railway...', 'warn');
+  try {
+    const payload = await requestJson('/api/state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(collectData())
+    });
+    state.remoteChecked = true;
+    state.remoteEnabled = Boolean(payload.enabled);
+    setRemoteStatus(`Saved shared data to Railway${payload.updatedAt ? ` on ${new Date(payload.updatedAt).toLocaleString()}` : ''}.`, 'good');
+    return true;
+  } catch (error) {
+    state.remoteChecked = true;
+    setRemoteStatus(`Railway save failed: ${error && error.message ? error.message : 'unknown error'}`, 'bad');
+    if (!quiet) alert('The Railway database data could not be saved.');
+    return false;
+  }
+}
+
+function scheduleRemoteSave(reason = 'changes') {
+  if (!state.remoteChecked || !state.remoteEnabled) return;
+  if (state.remoteSyncTimer) {
+    window.clearTimeout(state.remoteSyncTimer);
+    state.remoteSyncTimer = null;
+  }
+  setRemoteStatus(`Changes detected (${reason}). Saving to Railway...`, 'warn');
+  state.remoteSyncTimer = window.setTimeout(() => {
+    saveRemoteData({ quiet: true });
+  }, 900);
+}
+
 function loadData() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) {
@@ -1412,15 +1522,7 @@ function loadData() {
     return;
   }
   const parsed = JSON.parse(raw);
-  setSettings(parsed.settings || {});
-  state.selectedIndex = parsed.selectedIndex || 0;
-  state.itemMaster = Array.isArray(parsed.itemMaster) ? parsed.itemMaster : itemRowsFromCalculatorRows(parsed.rows || []);
-  state.stockRows = Array.isArray(parsed.stockRows) ? parsed.stockRows : stockRowsFromCalculatorRows(parsed.rows || []);
-  renderItemMasterTable();
-  renderStockTable();
-  state.intakeDirty = false;
-  updateIntakeSummary();
-  renderRows(parsed.rows || []);
+  applyPersistedState(parsed);
 }
 
 function renderRows(rows) {
@@ -1448,6 +1550,7 @@ function clearAllRows() {
   state.computed = [];
   state.intakeDirty = false;
   recalc();
+  scheduleRemoteSave('clear calculator rows');
 }
 
 function exportCSV() {
@@ -1474,15 +1577,28 @@ function exportCSV() {
 }
 
 function openTab(name) {
-  if (['calc', 'preview', 'invoice'].includes(name) && (state.intakeDirty || !state.computed.length)) {
-    buildCalculatorRowsFromIntake({ openCalculator: false, silent: true });
+  if (['calc', 'preview', 'invoice'].includes(name)) {
+    ensureCalculatorCurrent();
   }
   document.querySelectorAll('.tab-btn').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === name));
   document.querySelectorAll('.tab-panel').forEach((panel) => panel.classList.toggle('active', panel.id === `tab-${name}`));
 }
 
-function printInvoice() {
+function ensureCalculatorCurrent() {
+  if (state.intakeDirty || !state.computed.length) {
+    return buildCalculatorRowsFromIntake({ openCalculator: false, silent: true });
+  }
+  recalc();
+  return true;
+}
+
+function openInvoiceTab() {
+  ensureCalculatorCurrent();
   openTab('invoice');
+}
+
+function printInvoice() {
+  openInvoiceTab();
   window.print();
 }
 
@@ -1684,6 +1800,7 @@ async function handleFileUpload(file) {
     updateIntakeSummary();
     renderRows(rows);
     setImportStatus(`Imported ${rows.length} rows from ${file.name}.`, 'good');
+    scheduleRemoteSave('combined upload');
   } catch (error) {
     console.error(error);
     setImportStatus(`Upload failed: ${error && error.message ? error.message : 'unknown error'}`, 'bad');
@@ -1706,6 +1823,7 @@ async function handleItemMasterUpload(file) {
     updateIntakeSummary();
     setItemImportStatus(`Imported ${rows.length} item SKUs from ${file.name}.`, 'good');
     scheduleIntakeBuild('item master upload');
+    scheduleRemoteSave('item master upload');
   } catch (error) {
     console.error(error);
     setItemImportStatus(`Upload failed: ${error && error.message ? error.message : 'unknown error'}`, 'bad');
@@ -1728,6 +1846,7 @@ async function handleStockUpload(file) {
     updateIntakeSummary();
     setStockImportStatus(`Imported ${rows.length} stock lines from ${file.name}.`, 'good');
     scheduleIntakeBuild('stock upload');
+    scheduleRemoteSave('stock upload');
   } catch (error) {
     console.error(error);
     setStockImportStatus(`Upload failed: ${error && error.message ? error.message : 'unknown error'}`, 'bad');
@@ -1736,7 +1855,10 @@ async function handleStockUpload(file) {
 }
 
 ['customerName', 'reportLabel', 'palletL', 'palletW', 'overhang', 'palletHeight', 'rackHeight', 'billHeight', 'rate72'].forEach((id) => {
-  document.getElementById(id).addEventListener('input', recalc);
+  document.getElementById(id).addEventListener('input', () => {
+    recalc();
+    scheduleRemoteSave('settings change');
+  });
 });
 document.querySelectorAll('.tab-btn').forEach((btn) => btn.addEventListener('click', () => openTab(btn.dataset.tab)));
 document.getElementById('previewPicker').addEventListener('change', (event) => selectRow(toNum(event.target.value), false));
@@ -1748,19 +1870,21 @@ document.getElementById('stockUploadBtn').addEventListener('click', () => docume
 document.getElementById('itemFileInput').addEventListener('change', async (event) => { await handleItemMasterUpload(event.target.files[0]); event.target.value = ''; });
 document.getElementById('stockFileInput').addEventListener('change', async (event) => { await handleStockUpload(event.target.files[0]); event.target.value = ''; });
 document.getElementById('buildFromIntakeBtn').addEventListener('click', () => buildCalculatorRowsFromIntake({ openCalculator: true }));
-document.getElementById('buildInvoiceBtn').addEventListener('click', () => buildCalculatorRowsFromIntake({ openCalculator: false, openTarget: 'invoice' }));
+document.getElementById('buildInvoiceBtn').addEventListener('click', () => openInvoiceTab());
 document.getElementById('loadSeedIntoIntakeBtn').addEventListener('click', resetToSeed);
 document.getElementById('addItemMasterBtn').addEventListener('click', () => {
   state.itemMaster.push({ product: '', sku: '', lcm: 0, wcm: 0, hcm: 0, notes: '' });
   renderItemMasterTable();
   updateIntakeSummary();
   scheduleIntakeBuild('item master add');
+  scheduleRemoteSave('item master add');
 });
 document.getElementById('addStockRowBtn').addEventListener('click', () => {
   state.stockRows.push({ sku: '', product: '', boxes: 0, notes: 'Manual web entry' });
   renderStockTable();
   updateIntakeSummary();
   scheduleIntakeBuild('stock add');
+  scheduleRemoteSave('stock add');
 });
 document.getElementById('clearItemMasterBtn').addEventListener('click', () => {
   state.itemMaster = [];
@@ -1768,6 +1892,7 @@ document.getElementById('clearItemMasterBtn').addEventListener('click', () => {
   updateIntakeSummary();
   setItemImportStatus('Item master cleared.', 'warn');
   scheduleIntakeBuild('item master clear');
+  scheduleRemoteSave('item master clear');
 });
 document.getElementById('clearStockBtn').addEventListener('click', () => {
   state.stockRows = [];
@@ -1777,9 +1902,11 @@ document.getElementById('clearStockBtn').addEventListener('click', () => {
   updateIntakeSummary();
   setStockImportStatus('Stock rows cleared.', 'warn');
   setCalcSyncStatus('Stock rows were cleared. Calculator and invoice totals are reset until new stock is loaded.', 'warn');
+  scheduleRemoteSave('stock clear');
 });
 ensureXlsxLibrary();
 resetToSeed();
+loadRemoteData({ quiet: true });
 </script>
 </body>
 </html>
