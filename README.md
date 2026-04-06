@@ -1,6 +1,6 @@
 # Wellforia
 
-Standalone pallet position storage calculator for converting actual 60-inch rack usage into 72-inch billable pallet positions.
+Standalone pallet position storage calculator for converting actual 60-inch rack usage into benchmark billable pallet positions.
 
 ## Run locally
 

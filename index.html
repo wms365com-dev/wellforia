@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Pallet Position Calculator v3 - 60in Rack to 72in Billing</title>
+<title>Pallet Position Calculator v3 - 60in Rack to Billable Benchmark</title>
 <style>
   :root {
     --bg: #eef3f6;
@@ -534,7 +534,7 @@
       <div>
         <h1>Warehouse Pallet Position Calculator</h1>
         <div class="sub">
-          Convert real 60&quot; rack usage into 72&quot; billable pallet positions, intake SKU dimensions from an item master, merge stock from a report or web entry, and generate a cleaner customer-facing storage summary.
+          Convert real 60&quot; rack usage into benchmark billable pallet positions, intake SKU dimensions from an item master, merge stock from a report or web entry, and generate a cleaner customer-facing storage summary.
         </div>
       </div>
       <div class="hero-badges">
@@ -553,8 +553,8 @@
     <div class="card field"><label>Allowed Overhang per Side (in)</label><input id="overhang" type="number" step="0.01" value="1"></div>
     <div class="card field"><label>Pallet Height (in)</label><input id="palletHeight" type="number" step="0.01" value="5.5"></div>
     <div class="card field"><label>Rack Height Limit (in)</label><input id="rackHeight" type="number" step="0.01" value="60"></div>
-    <div class="card field"><label>Billable Height Benchmark (in)</label><input id="billHeight" type="number" step="0.01" value="72"></div>
-    <div class="card field"><label>Customer Billing Rate per 72&quot; Position ($)</label><input id="rate72" type="number" step="0.01" value="15"></div>
+    <div class="card field"><label>Billable Height Benchmark (in)</label><input id="billHeight" type="number" step="0.01" value="76"></div>
+    <div class="card field"><label>Customer Billing Rate per Billable Position ($)</label><input id="rate72" type="number" step="0.01" value="15"></div>
     <div class="card field wide">
       <label>Combined Upload</label>
       <div class="small">One-file shortcut. Import a worksheet that already includes <strong>PRODUCT</strong>, <strong>SKU</strong>, <strong>Dimensions (cm)</strong>, and <strong>Boxes is Stock</strong>.</div>
@@ -614,7 +614,7 @@
       <div class="invoice-ribbon-card">
         <div class="label">Billable Positions</div>
         <div class="value" id="invoiceRibbonBillable">0.00</div>
-        <div class="hint">72" equivalent positions</div>
+        <div class="hint">Benchmark-equivalent positions</div>
       </div>
       <div class="invoice-ribbon-card">
         <div class="label">Monthly Storage</div>
@@ -730,7 +730,7 @@
     <div class="card metric"><div class="label">Total SKUs</div><div class="value" id="sumSkus">0</div></div>
     <div class="card metric"><div class="label">Total Boxes</div><div class="value" id="sumBoxes">0</div></div>
     <div class="card metric"><div class="label">Actual 60&quot; Positions</div><div class="value" id="sumActual60">0</div></div>
-    <div class="card metric"><div class="label">72&quot; Billable Positions</div><div class="value" id="sumBill72">0</div></div>
+    <div class="card metric"><div class="label">Billable Positions</div><div class="value" id="sumBill72">0</div></div>
     <div class="card metric"><div class="label">Monthly Storage</div><div class="value" id="sumRevenue">$0.00</div></div>
     <div class="card metric"><div class="label">Avg Utilization</div><div class="value" id="sumUtil">0%</div></div>
   </div>
@@ -755,7 +755,7 @@
           <th>Layers @ Rack Height</th>
           <th>Cases / Position</th>
           <th>Actual 60&quot; Positions</th>
-          <th>72&quot; Billable Positions</th>
+          <th>Billable Positions</th>
           <th>Monthly Charge</th>
           <th>Pallet Area Util.</th>
           <th>Notes</th>
@@ -771,8 +771,8 @@
     <div class="formula">
       Cases per Position = Cases per Layer x Layers that fit within (Rack Height - Pallet Height)<br>
       Actual 60" Positions = Boxes / Cases per Position<br>
-      72" Billable Positions = Actual 60" Positions x (Rack Height / Billable Height)<br>
-      Monthly Charge = 72" Billable Positions x Customer Rate
+      Billable Positions = Actual 60" Positions x (Rack Height / Billable Height)<br>
+      Monthly Charge = Billable Positions x Customer Rate
     </div>
     <div class="small" style="margin-top:10px;">
       This is an estimate tool. It assumes regular stacking and that the best carton orientation shown is operationally acceptable. If a carton is crush-sensitive, label-sensitive, or must stay upright, update the row note and override the dimensions manually if needed.
@@ -819,7 +819,7 @@
           <div class="info-grid">
             <div class="info-box"><div class="label">Actual Rack Positions</div><div class="value" id="invoiceActual">0</div></div>
             <div class="info-box"><div class="label">Billable Positions</div><div class="value" id="invoiceBillable">0</div></div>
-            <div class="info-box"><div class="label">Rate / 72&quot; Position</div><div class="value" id="invoiceRate">$0.00</div></div>
+            <div class="info-box"><div class="label">Rate / Billable Position</div><div class="value" id="invoiceRate">$0.00</div></div>
             <div class="info-box"><div class="label">Monthly Charge</div><div class="value" id="invoiceTotal">$0.00</div></div>
           </div>
         </div>
@@ -968,7 +968,7 @@ function getSettings() {
     overhang: toNum(document.getElementById('overhang').value),
     palletHeight: toNum(document.getElementById('palletHeight').value) || 5.5,
     rackHeight: toNum(document.getElementById('rackHeight').value) || 60,
-    billHeight: toNum(document.getElementById('billHeight').value) || 72,
+    billHeight: toNum(document.getElementById('billHeight').value) || 76,
     rate72: toNum(document.getElementById('rate72').value) || 15
   };
 }
@@ -981,7 +981,7 @@ function setSettings(s = {}) {
   document.getElementById('overhang').value = s.overhang ?? 1;
   document.getElementById('palletHeight').value = s.palletHeight ?? 5.5;
   document.getElementById('rackHeight').value = s.rackHeight ?? 60;
-  document.getElementById('billHeight').value = s.billHeight ?? 72;
+  document.getElementById('billHeight').value = s.billHeight ?? 76;
   document.getElementById('rate72').value = s.rate72 ?? 15;
 }
 
@@ -1410,7 +1410,7 @@ function recalc() {
   document.getElementById('sumRevenue').textContent = formatMoney(totalRevenue);
   document.getElementById('sumUtil').textContent = utilCount ? `${formatNum(utilSum / utilCount, 1)}%` : '0%';
   const calcFormula = document.querySelector('#tab-calc .formula');
-  if (calcFormula) calcFormula.innerHTML = `Cases per Position = Cases per Layer x Layers that fit within (Rack Height - Pallet Height)<br>Actual 60" Positions = Boxes / Cases per Position<br>72" Billable Positions = Actual 60" Positions x (${formatNum(settings.rackHeight, 0)} / ${formatNum(settings.billHeight, 0)})<br>Monthly Charge = 72" Billable Positions x ${formatMoney(settings.rate72)}`;
+  if (calcFormula) calcFormula.innerHTML = `Cases per Position = Cases per Layer x Layers that fit within (Rack Height - Pallet Height)<br>Actual 60" Positions = Boxes / Cases per Position<br>Billable Positions = Actual 60" Positions x (${formatNum(settings.rackHeight, 0)} / ${formatNum(settings.billHeight, 0)})<br>Monthly Charge = Billable Positions x ${formatMoney(settings.rate72)}`;
   updateSelection();
   renderPreview();
   renderInvoice();
@@ -1591,7 +1591,7 @@ function updateInvoiceRibbon(rows, totals, settings) {
 
   status.className = 'status good';
   status.textContent = 'Invoice ready';
-  title.textContent = `Estimated monthly storage is ${formatMoney(totals.charge || 0)} at ${formatMoney(settings.rate72)} per 72" position.`;
+  title.textContent = `Estimated monthly storage is ${formatMoney(totals.charge || 0)} at ${formatMoney(settings.rate72)} per ${formatNum(settings.billHeight, 0)}" position.`;
   narrative.textContent = `${formatNum(readyRows, 0)} billable SKU rows currently use ${formatNum(totals.actual || 0, 2)} actual ${formatNum(settings.rackHeight, 0)}" rack positions and convert to ${formatNum(totals.bill || 0, 2)} billable ${formatNum(settings.billHeight, 0)}" positions.`;
 }
 
@@ -1767,7 +1767,7 @@ function renderRows(rows) {
 }
 
 function resetToSeed() {
-  setSettings({ customerName: 'Customer Storage Estimate', reportLabel: 'Monthly Storage Review', palletL: 48, palletW: 40, overhang: 1, palletHeight: 5.5, rackHeight: 60, billHeight: 72, rate72: 15 });
+  setSettings({ customerName: 'Customer Storage Estimate', reportLabel: 'Monthly Storage Review', palletL: 48, palletW: 40, overhang: 1, palletHeight: 5.5, rackHeight: 60, billHeight: 76, rate72: 15 });
   state.selectedIndex = 0;
   state.itemMaster = itemRowsFromCalculatorRows(seedData);
   state.stockRows = stockRowsFromCalculatorRows(seedData);
@@ -1790,7 +1790,7 @@ function clearAllRows() {
 
 function exportCSV() {
   const headers = [
-    'Product','SKU','Boxes','L (cm)','W (cm)','H (cm)','L (in)','W (in)','H (in)','Best Orientation','Footprint Used (in)','Fit Audit','Cases / Layer','Layers @ Rack Height','Cases / Position','Actual 60in Positions','72in Billable Positions','Monthly Charge','Pallet Area Utilization','Notes'
+    'Product','SKU','Boxes','L (cm)','W (cm)','H (cm)','L (in)','W (in)','H (in)','Best Orientation','Footprint Used (in)','Fit Audit','Cases / Layer','Layers @ Rack Height','Cases / Position','Actual 60in Positions','Billable Positions','Monthly Charge','Pallet Area Utilization','Notes'
   ];
   const lines = [headers.join(',')];
   state.computed.forEach((row) => {
