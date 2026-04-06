@@ -13,6 +13,14 @@ const PORT = Number(process.env.PORT) || 3000;
 const ROOT = __dirname;
 const DEFAULT_STATE_ID = process.env.APP_STATE_ID || 'default';
 const DATABASE_URL = process.env.DATABASE_URL || '';
+const DB_SCHEMA = 'public';
+const TABLES = {
+  config: `${DB_SCHEMA}.app_config`,
+  itemMaster: `${DB_SCHEMA}.item_master_rows`,
+  stock: `${DB_SCHEMA}.stock_rows`,
+  calculator: `${DB_SCHEMA}.calculator_rows`,
+  legacy: `${DB_SCHEMA}.app_state`
+};
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -35,6 +43,10 @@ const pool = DATABASE_URL && Pool ? new Pool({
 }) : null;
 
 let dbReadyPromise = null;
+
+function isUndefinedTableError(error) {
+  return error && error.code === '42P01';
+}
 
 function send(res, statusCode, body, contentType) {
   res.writeHead(statusCode, { 'Content-Type': contentType });
@@ -239,7 +251,7 @@ async function replaceRows(client, tableName, datasetId, columns, rows) {
 
 async function writeMappedState(client, datasetId, payload) {
   await client.query(`
-    INSERT INTO app_config (id, settings, selected_index, updated_at)
+    INSERT INTO ${TABLES.config} (id, settings, selected_index, updated_at)
     VALUES ($1, $2, $3, NOW())
     ON CONFLICT (id) DO UPDATE SET
       settings = EXCLUDED.settings,
@@ -247,7 +259,7 @@ async function writeMappedState(client, datasetId, payload) {
       updated_at = NOW()
   `, [datasetId, payload.settings, payload.selectedIndex]);
 
-  await replaceRows(client, 'item_master_rows', datasetId, ['sort_order', 'sku', 'product', 'lcm', 'wcm', 'hcm', 'notes'],
+  await replaceRows(client, TABLES.itemMaster, datasetId, ['sort_order', 'sku', 'product', 'lcm', 'wcm', 'hcm', 'notes'],
     payload.itemMaster.map((row, index) => ({
       sort_order: index,
       sku: row.sku,
@@ -259,7 +271,7 @@ async function writeMappedState(client, datasetId, payload) {
     }))
   );
 
-  await replaceRows(client, 'stock_rows', datasetId, ['sort_order', 'sku', 'product', 'boxes', 'notes'],
+  await replaceRows(client, TABLES.stock, datasetId, ['sort_order', 'sku', 'product', 'boxes', 'notes'],
     payload.stockRows.map((row, index) => ({
       sort_order: index,
       sku: row.sku,
@@ -269,7 +281,7 @@ async function writeMappedState(client, datasetId, payload) {
     }))
   );
 
-  await replaceRows(client, 'calculator_rows', datasetId, ['sort_order', 'sku', 'product', 'boxes', 'lcm', 'wcm', 'hcm', 'notes'],
+  await replaceRows(client, TABLES.calculator, datasetId, ['sort_order', 'sku', 'product', 'boxes', 'lcm', 'wcm', 'hcm', 'notes'],
     payload.rows.map((row, index) => ({
       sort_order: index,
       sku: row.sku,
@@ -287,25 +299,25 @@ async function readMappedState(client, datasetId) {
   const [configResult, itemResult, stockResult, calcResult] = await Promise.all([
     client.query(`
       SELECT id, settings, selected_index AS "selectedIndex", updated_at AS "updatedAt"
-      FROM app_config
+      FROM ${TABLES.config}
       WHERE id = $1
       LIMIT 1
     `, [datasetId]),
     client.query(`
       SELECT sku, product, lcm, wcm, hcm, notes
-      FROM item_master_rows
+      FROM ${TABLES.itemMaster}
       WHERE dataset_id = $1
       ORDER BY sort_order ASC, id ASC
     `, [datasetId]),
     client.query(`
       SELECT sku, product, boxes, notes
-      FROM stock_rows
+      FROM ${TABLES.stock}
       WHERE dataset_id = $1
       ORDER BY sort_order ASC, id ASC
     `, [datasetId]),
     client.query(`
       SELECT sku, product, boxes, lcm, wcm, hcm, notes
-      FROM calculator_rows
+      FROM ${TABLES.calculator}
       WHERE dataset_id = $1
       ORDER BY sort_order ASC, id ASC
     `, [datasetId])
@@ -342,7 +354,7 @@ async function migrateLegacyState(client) {
       item_master AS "itemMaster",
       stock_rows AS "stockRows",
       selected_index AS "selectedIndex"
-    FROM app_state
+    FROM ${TABLES.legacy}
     WHERE id = $1
     LIMIT 1
   `, [DEFAULT_STATE_ID]).catch(() => ({ rows: [] }));
@@ -359,8 +371,10 @@ async function ensureDb() {
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
+        await client.query(`CREATE SCHEMA IF NOT EXISTS ${DB_SCHEMA}`);
+        await client.query(`SET search_path TO ${DB_SCHEMA}`);
         await client.query(`
-          CREATE TABLE IF NOT EXISTS app_config (
+          CREATE TABLE IF NOT EXISTS ${TABLES.config} (
             id TEXT PRIMARY KEY,
             settings JSONB NOT NULL DEFAULT '{}'::jsonb,
             selected_index INTEGER NOT NULL DEFAULT 0,
@@ -368,9 +382,9 @@ async function ensureDb() {
           )
         `);
         await client.query(`
-          CREATE TABLE IF NOT EXISTS item_master_rows (
+          CREATE TABLE IF NOT EXISTS ${TABLES.itemMaster} (
             id BIGSERIAL PRIMARY KEY,
-            dataset_id TEXT NOT NULL REFERENCES app_config(id) ON DELETE CASCADE,
+            dataset_id TEXT NOT NULL REFERENCES ${TABLES.config}(id) ON DELETE CASCADE,
             sort_order INTEGER NOT NULL DEFAULT 0,
             sku TEXT NOT NULL DEFAULT '',
             product TEXT NOT NULL DEFAULT '',
@@ -382,9 +396,9 @@ async function ensureDb() {
           )
         `);
         await client.query(`
-          CREATE TABLE IF NOT EXISTS stock_rows (
+          CREATE TABLE IF NOT EXISTS ${TABLES.stock} (
             id BIGSERIAL PRIMARY KEY,
-            dataset_id TEXT NOT NULL REFERENCES app_config(id) ON DELETE CASCADE,
+            dataset_id TEXT NOT NULL REFERENCES ${TABLES.config}(id) ON DELETE CASCADE,
             sort_order INTEGER NOT NULL DEFAULT 0,
             sku TEXT NOT NULL DEFAULT '',
             product TEXT NOT NULL DEFAULT '',
@@ -394,9 +408,9 @@ async function ensureDb() {
           )
         `);
         await client.query(`
-          CREATE TABLE IF NOT EXISTS calculator_rows (
+          CREATE TABLE IF NOT EXISTS ${TABLES.calculator} (
             id BIGSERIAL PRIMARY KEY,
-            dataset_id TEXT NOT NULL REFERENCES app_config(id) ON DELETE CASCADE,
+            dataset_id TEXT NOT NULL REFERENCES ${TABLES.config}(id) ON DELETE CASCADE,
             sort_order INTEGER NOT NULL DEFAULT 0,
             sku TEXT NOT NULL DEFAULT '',
             product TEXT NOT NULL DEFAULT '',
@@ -408,11 +422,11 @@ async function ensureDb() {
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
           )
         `);
-        await client.query(`CREATE INDEX IF NOT EXISTS item_master_rows_dataset_order_idx ON item_master_rows (dataset_id, sort_order, id)`);
-        await client.query(`CREATE INDEX IF NOT EXISTS item_master_rows_dataset_sku_idx ON item_master_rows (dataset_id, upper(trim(sku)))`);
-        await client.query(`CREATE INDEX IF NOT EXISTS stock_rows_dataset_order_idx ON stock_rows (dataset_id, sort_order, id)`);
-        await client.query(`CREATE INDEX IF NOT EXISTS stock_rows_dataset_sku_idx ON stock_rows (dataset_id, upper(trim(sku)))`);
-        await client.query(`CREATE INDEX IF NOT EXISTS calculator_rows_dataset_order_idx ON calculator_rows (dataset_id, sort_order, id)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS item_master_rows_dataset_order_idx ON ${TABLES.itemMaster} (dataset_id, sort_order, id)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS item_master_rows_dataset_sku_idx ON ${TABLES.itemMaster} (dataset_id, upper(trim(sku)))`);
+        await client.query(`CREATE INDEX IF NOT EXISTS stock_rows_dataset_order_idx ON ${TABLES.stock} (dataset_id, sort_order, id)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS stock_rows_dataset_sku_idx ON ${TABLES.stock} (dataset_id, upper(trim(sku)))`);
+        await client.query(`CREATE INDEX IF NOT EXISTS calculator_rows_dataset_order_idx ON ${TABLES.calculator} (dataset_id, sort_order, id)`);
         await migrateLegacyState(client);
         await client.query('COMMIT');
       } catch (error) {
@@ -451,18 +465,26 @@ async function handleGetState(res) {
     return;
   }
 
-  const client = await pool.connect();
-  try {
-    const result = await readMappedState(client, DEFAULT_STATE_ID);
-    sendJson(res, 200, {
-      ok: true,
-      enabled: true,
-      found: result.found,
-      updatedAt: result.updatedAt,
-      state: result.state
-    });
-  } finally {
-    client.release();
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const client = await pool.connect();
+    try {
+      await client.query(`SET search_path TO ${DB_SCHEMA}`);
+      const result = await readMappedState(client, DEFAULT_STATE_ID);
+      sendJson(res, 200, {
+        ok: true,
+        enabled: true,
+        found: result.found,
+        updatedAt: result.updatedAt,
+        state: result.state
+      });
+      return;
+    } catch (error) {
+      if (!isUndefinedTableError(error) || attempt === 1) throw error;
+      dbReadyPromise = null;
+      await ensureDb();
+    } finally {
+      client.release();
+    }
   }
 }
 
@@ -473,33 +495,43 @@ async function handleSaveState(req, res) {
   }
 
   const payload = normalizeStatePayload(await readJsonBody(req));
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    await writeMappedState(client, DEFAULT_STATE_ID, payload);
-    const result = await client.query(`
-      SELECT updated_at AS "updatedAt"
-      FROM app_config
-      WHERE id = $1
-      LIMIT 1
-    `, [DEFAULT_STATE_ID]);
-    await client.query('COMMIT');
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const client = await pool.connect();
+    try {
+      await client.query(`SET search_path TO ${DB_SCHEMA}`);
+      await client.query('BEGIN');
+      await writeMappedState(client, DEFAULT_STATE_ID, payload);
+      const result = await client.query(`
+        SELECT updated_at AS "updatedAt"
+        FROM ${TABLES.config}
+        WHERE id = $1
+        LIMIT 1
+      `, [DEFAULT_STATE_ID]);
+      await client.query('COMMIT');
 
-    sendJson(res, 200, {
-      ok: true,
-      enabled: true,
-      updatedAt: result.rows[0] ? result.rows[0].updatedAt : null,
-      counts: {
-        itemMaster: payload.itemMaster.length,
-        stockRows: payload.stockRows.length,
-        calculatorRows: payload.rows.length
+      sendJson(res, 200, {
+        ok: true,
+        enabled: true,
+        updatedAt: result.rows[0] ? result.rows[0].updatedAt : null,
+        counts: {
+          itemMaster: payload.itemMaster.length,
+          stockRows: payload.stockRows.length,
+          calculatorRows: payload.rows.length
+        }
+      });
+      return;
+    } catch (error) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackError) {
+        // Ignore rollback failures after the primary error.
       }
-    });
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
+      if (!isUndefinedTableError(error) || attempt === 1) throw error;
+      dbReadyPromise = null;
+      await ensureDb();
+    } finally {
+      client.release();
+    }
   }
 }
 
