@@ -130,6 +130,108 @@
     flex-wrap: wrap;
     margin: 12px 0 18px;
   }
+  .action-bar {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.9fr);
+    gap: 16px;
+    margin-bottom: 18px;
+  }
+  .action-groups {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .action-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(18, 76, 127, 0.08);
+    background: rgba(255,255,255,0.72);
+    box-shadow: var(--shadow-soft);
+  }
+  .action-meta {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(18,76,127,0.08), rgba(74,149,186,0.12));
+    border: 1px solid rgba(18,76,127,0.12);
+    box-shadow: var(--shadow-soft);
+  }
+  .action-meta strong {
+    font-size: 18px;
+    line-height: 1.15;
+  }
+  .invoice-ribbon {
+    margin-bottom: 18px;
+    padding: 18px;
+    border-radius: 22px;
+    border: 1px solid rgba(18,76,127,0.14);
+    background:
+      radial-gradient(circle at top right, rgba(255,255,255,0.4), transparent 26%),
+      linear-gradient(135deg, rgba(10,53,88,0.98), rgba(18,76,127,0.94) 58%, rgba(74,149,186,0.92));
+    box-shadow: var(--shadow);
+    color: #f5fbff;
+  }
+  .invoice-ribbon .small,
+  .invoice-ribbon p {
+    color: rgba(240,248,255,0.84);
+  }
+  .invoice-ribbon-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .invoice-ribbon-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(150px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .invoice-ribbon-card {
+    padding: 14px;
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(8px);
+  }
+  .invoice-ribbon-card .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(240,248,255,0.72);
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .invoice-ribbon-card .value {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.05;
+  }
+  .invoice-ribbon-card .hint {
+    margin-top: 6px;
+    font-size: 12px;
+    color: rgba(240,248,255,0.72);
+  }
+  .invoice-ribbon-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .button-light {
+    background: rgba(255,255,255,0.9);
+    color: var(--accent-strong);
+  }
+  .button-light:hover {
+    filter: brightness(1.01);
+  }
   button {
     border: 0;
     border-radius: 12px;
@@ -417,8 +519,9 @@
     background: #eef3f6;
   }
   @media (max-width: 1000px) {
-    .grid, .summary, .info-grid { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
+    .grid, .summary, .info-grid, .invoice-ribbon-grid { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
     .layout-two { grid-template-columns: 1fr; }
+    .action-bar { grid-template-columns: 1fr; }
     h1 { font-size: 22px; }
     .hero-top { flex-direction: column; }
   }
@@ -464,20 +567,71 @@
     </div>
   </div>
 
-  <div class="toolbar">
-    <button class="primary" onclick="addRow()">Add SKU Row</button>
-    <button onclick="recalc()">Recalculate</button>
-    <button onclick="saveData()">Save Local</button>
-    <button onclick="loadData()">Load Local</button>
-    <button class="ghost" onclick="saveRemoteData()">Save Railway</button>
-    <button class="ghost" onclick="loadRemoteData()">Load Railway</button>
-    <button onclick="exportCSV()">Export CSV</button>
-    <button class="warn" onclick="resetToSeed()">Reload Uploaded SKU Data</button>
-    <button class="danger" onclick="clearAllRows()">Clear Rows</button>
-    <button class="ghost" onclick="printInvoice()">Print Invoice Summary</button>
+  <div class="action-bar">
+    <div class="action-groups">
+      <div class="action-group">
+        <button type="button" class="primary" id="toolbarAddRowBtn">Add SKU Row</button>
+        <button type="button" id="toolbarRecalcBtn">Recalculate</button>
+        <button type="button" id="toolbarExportBtn">Export CSV</button>
+        <button type="button" class="ghost" id="toolbarOpenInvoiceBtn">Open Invoice</button>
+        <button type="button" class="ghost" id="toolbarPrintInvoiceBtn">Print Invoice Summary</button>
+      </div>
+      <div class="action-group">
+        <button type="button" id="toolbarSaveLocalBtn">Save Local</button>
+        <button type="button" id="toolbarLoadLocalBtn">Load Local</button>
+        <button type="button" class="ghost" id="toolbarSaveRailwayBtn">Save Railway</button>
+        <button type="button" class="ghost" id="toolbarLoadRailwayBtn">Load Railway</button>
+        <button type="button" class="warn" id="toolbarReloadSeedBtn">Reload Uploaded SKU Data</button>
+        <button type="button" class="danger" id="toolbarClearRowsBtn">Clear Rows</button>
+      </div>
+    </div>
+    <div class="action-meta">
+      <div>
+        <div class="small">Workflow</div>
+        <strong>Upload item master and stock, then let billing update in the background.</strong>
+      </div>
+      <div class="small" id="uiAssistText">Use Data Intake for uploads. Invoice totals stay in sync and the snapshot below updates live.</div>
+    </div>
   </div>
 
   <div id="remoteStatus" class="status warn" style="display:inline-flex;max-width:100%;margin-bottom:18px;">Checking Railway database connection...</div>
+
+  <div class="invoice-ribbon">
+    <div class="invoice-ribbon-top">
+      <div>
+        <div class="small">Live Billing Snapshot</div>
+        <div style="font-size:28px;font-weight:800;line-height:1.05;" id="invoiceRibbonTitle">Invoice updates automatically in the background.</div>
+        <p id="invoiceRibbonNarrative" style="margin:8px 0 0;max-width:74ch;">Load or edit SKU and stock data and the calculator will keep the billing summary current.</p>
+      </div>
+      <div id="invoiceRibbonStatus" class="status good" style="background:rgba(209,250,229,0.18);color:#e7fff2;border:1px solid rgba(255,255,255,0.14);">Waiting for data</div>
+    </div>
+    <div class="invoice-ribbon-grid">
+      <div class="invoice-ribbon-card">
+        <div class="label">Actual Rack Positions</div>
+        <div class="value" id="invoiceRibbonActual">0.00</div>
+        <div class="hint">60" positions used</div>
+      </div>
+      <div class="invoice-ribbon-card">
+        <div class="label">Billable Positions</div>
+        <div class="value" id="invoiceRibbonBillable">0.00</div>
+        <div class="hint">72" equivalent positions</div>
+      </div>
+      <div class="invoice-ribbon-card">
+        <div class="label">Monthly Storage</div>
+        <div class="value" id="invoiceRibbonTotal">$0.00</div>
+        <div class="hint">Estimated customer charge</div>
+      </div>
+      <div class="invoice-ribbon-card">
+        <div class="label">Rows Ready</div>
+        <div class="value" id="invoiceRibbonReady">0</div>
+        <div class="hint">Rows with billable calculations</div>
+      </div>
+    </div>
+    <div class="invoice-ribbon-actions">
+      <button type="button" class="button-light" id="invoiceRibbonOpenBtn">Open Full Invoice</button>
+      <button type="button" class="button-light" id="invoiceRibbonPreviewBtn">Open Pallet Preview</button>
+    </div>
+  </div>
 
   <div class="tabs">
     <button class="tab-btn" type="button" data-tab="data">Data Intake</button>
@@ -682,7 +836,7 @@
             <div class="small">SKU Rollup</div>
             <div style="font-size:20px;font-weight:700;">Top Monthly Charge Drivers</div>
           </div>
-          <button type="button" class="ghost" onclick="openTab('preview')">View Selected SKU Preview</button>
+          <button type="button" class="ghost" id="invoicePreviewBtn">View Selected SKU Preview</button>
         </div>
         <div class="table-wrap">
           <table class="invoice-table" id="invoiceTable">
@@ -1391,6 +1545,7 @@ function renderInvoice() {
   document.getElementById('invoiceFormula').innerHTML = `Billable Positions = Actual Positions x (${formatNum(settings.rackHeight, 0)} / ${formatNum(settings.billHeight, 0)})<br>Monthly Charge = Billable Positions x ${formatMoney(settings.rate72)}`;
   const tbody = document.querySelector('#invoiceTable tbody');
   tbody.innerHTML = '';
+  updateInvoiceRibbon(rows, totals, settings);
   if (!rows.length) {
     const hasStock = state.stockRows.some((row) => row.sku || row.product || row.boxes);
     tbody.innerHTML = `<tr><td colspan="8" class="empty">${hasStock ? 'No billable calculator rows yet. Check Data Intake or carton dimensions, then rebuild.' : 'No SKU data available.'}</td></tr>`;
@@ -1402,6 +1557,41 @@ function renderInvoice() {
     tr.addEventListener('click', () => selectRow(row.index, true));
     tbody.appendChild(tr);
   });
+}
+
+function updateInvoiceRibbon(rows, totals, settings) {
+  const readyRows = rows.filter((row) => row.charge > 0 || row.actual60 > 0 || row.bill72 > 0).length;
+  const hasData = rows.length > 0;
+  const hasBillable = readyRows > 0;
+  document.getElementById('invoiceRibbonActual').textContent = formatNum(totals.actual || 0, 2);
+  document.getElementById('invoiceRibbonBillable').textContent = formatNum(totals.bill || 0, 2);
+  document.getElementById('invoiceRibbonTotal').textContent = formatMoney(totals.charge || 0);
+  document.getElementById('invoiceRibbonReady').textContent = formatNum(readyRows, 0);
+
+  const status = document.getElementById('invoiceRibbonStatus');
+  const title = document.getElementById('invoiceRibbonTitle');
+  const narrative = document.getElementById('invoiceRibbonNarrative');
+
+  if (!hasData) {
+    status.className = 'status warn';
+    status.textContent = 'Waiting for data';
+    title.textContent = 'Invoice updates automatically in the background.';
+    narrative.textContent = 'Upload item master and stock data, or add calculator rows manually, and your invoice totals will appear here.';
+    return;
+  }
+
+  if (!hasBillable) {
+    status.className = 'status warn';
+    status.textContent = 'Needs review';
+    title.textContent = 'Some SKU rows still need dimensions or pallet-fit review.';
+    narrative.textContent = 'The invoice is recalculating in the background, but at least one row still has missing dimensions or does not fit the current pallet settings.';
+    return;
+  }
+
+  status.className = 'status good';
+  status.textContent = 'Invoice ready';
+  title.textContent = `Estimated monthly storage is ${formatMoney(totals.charge || 0)} at ${formatMoney(settings.rate72)} per 72" position.`;
+  narrative.textContent = `${formatNum(readyRows, 0)} billable SKU rows currently use ${formatNum(totals.actual || 0, 2)} actual ${formatNum(settings.rackHeight, 0)}" rack positions and convert to ${formatNum(totals.bill || 0, 2)} billable ${formatNum(settings.billHeight, 0)}" positions.`;
 }
 
 function collectData() {
@@ -1595,6 +1785,10 @@ function ensureCalculatorCurrent() {
 function openInvoiceTab() {
   ensureCalculatorCurrent();
   openTab('invoice');
+  const panel = document.getElementById('tab-invoice');
+  if (panel && typeof panel.scrollIntoView === 'function') {
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 }
 
 function printInvoice() {
@@ -1860,6 +2054,22 @@ async function handleStockUpload(file) {
     scheduleRemoteSave('settings change');
   });
 });
+document.getElementById('toolbarAddRowBtn').addEventListener('click', addRow);
+document.getElementById('toolbarRecalcBtn').addEventListener('click', () => {
+  ensureCalculatorCurrent();
+});
+document.getElementById('toolbarSaveLocalBtn').addEventListener('click', saveData);
+document.getElementById('toolbarLoadLocalBtn').addEventListener('click', loadData);
+document.getElementById('toolbarSaveRailwayBtn').addEventListener('click', () => saveRemoteData());
+document.getElementById('toolbarLoadRailwayBtn').addEventListener('click', () => loadRemoteData());
+document.getElementById('toolbarExportBtn').addEventListener('click', exportCSV);
+document.getElementById('toolbarReloadSeedBtn').addEventListener('click', resetToSeed);
+document.getElementById('toolbarClearRowsBtn').addEventListener('click', clearAllRows);
+document.getElementById('toolbarOpenInvoiceBtn').addEventListener('click', openInvoiceTab);
+document.getElementById('toolbarPrintInvoiceBtn').addEventListener('click', printInvoice);
+document.getElementById('invoiceRibbonOpenBtn').addEventListener('click', openInvoiceTab);
+document.getElementById('invoiceRibbonPreviewBtn').addEventListener('click', () => openTab('preview'));
+document.getElementById('invoicePreviewBtn').addEventListener('click', () => openTab('preview'));
 document.querySelectorAll('.tab-btn').forEach((btn) => btn.addEventListener('click', () => openTab(btn.dataset.tab)));
 document.getElementById('previewPicker').addEventListener('change', (event) => selectRow(toNum(event.target.value), false));
 document.getElementById('uploadBtn').addEventListener('click', () => document.getElementById('fileInput').click());
@@ -1907,6 +2117,20 @@ document.getElementById('clearStockBtn').addEventListener('click', () => {
 ensureXlsxLibrary();
 resetToSeed();
 loadRemoteData({ quiet: true });
+Object.assign(window, {
+  addRow,
+  recalc,
+  saveData,
+  loadData,
+  saveRemoteData,
+  loadRemoteData,
+  exportCSV,
+  resetToSeed,
+  clearAllRows,
+  printInvoice,
+  openTab,
+  openInvoiceTab
+});
 </script>
 </body>
 </html>

@@ -60,34 +60,130 @@ function normalizeObject(value) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 }
 
-function normalizeStatePayload(payload) {
-  const safePayload = normalizeObject(payload);
-  return {
-    settings: normalizeObject(safePayload.settings),
-    rows: normalizeArray(safePayload.rows),
-    itemMaster: normalizeArray(safePayload.itemMaster),
-    stockRows: normalizeArray(safePayload.stockRows),
-    selectedIndex: Number.isFinite(Number(safePayload.selectedIndex)) ? Math.max(0, Number(safePayload.selectedIndex)) : 0
-  };
+function normalizeString(value) {
+  return String(value ?? '').trim();
 }
 
-async function ensureDb() {
-  if (!pool) return false;
-  if (!dbReadyPromise) {
-    dbReadyPromise = pool.query(`
-      CREATE TABLE IF NOT EXISTS app_state (
-        id TEXT PRIMARY KEY,
-        settings JSONB NOT NULL DEFAULT '{}'::jsonb,
-        rows JSONB NOT NULL DEFAULT '[]'::jsonb,
-        item_master JSONB NOT NULL DEFAULT '[]'::jsonb,
-        stock_rows JSONB NOT NULL DEFAULT '[]'::jsonb,
-        selected_index INTEGER NOT NULL DEFAULT 0,
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `);
-  }
-  await dbReadyPromise;
-  return true;
+function normalizeSku(value) {
+  return normalizeString(value).toUpperCase();
+}
+
+function toNum(value) {
+  const number = parseFloat(String(value ?? '').replace(/[^0-9.-]/g, ''));
+  return Number.isFinite(number) ? number : 0;
+}
+
+function itemRowsFromCalculatorRows(rows) {
+  const seen = new Set();
+  return normalizeArray(rows)
+    .map((row) => ({
+      product: normalizeString(row.product),
+      sku: normalizeString(row.sku),
+      lcm: toNum(row.lcm),
+      wcm: toNum(row.wcm),
+      hcm: toNum(row.hcm),
+      notes: normalizeString(row.notes)
+    }))
+    .filter((row) => row.product || row.sku || row.lcm || row.wcm || row.hcm)
+    .filter((row) => {
+      const key = normalizeSku(row.sku);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function stockRowsFromCalculatorRows(rows) {
+  return normalizeArray(rows)
+    .map((row) => ({
+      sku: normalizeString(row.sku),
+      product: normalizeString(row.product),
+      boxes: toNum(row.boxes),
+      notes: normalizeString(row.notes)
+    }))
+    .filter((row) => row.sku || row.product || row.boxes);
+}
+
+function normalizeItemMasterRows(rows) {
+  return normalizeArray(rows)
+    .map((row) => ({
+      product: normalizeString(row.product),
+      sku: normalizeString(row.sku),
+      lcm: toNum(row.lcm),
+      wcm: toNum(row.wcm),
+      hcm: toNum(row.hcm),
+      notes: normalizeString(row.notes)
+    }))
+    .filter((row) => row.product || row.sku || row.lcm || row.wcm || row.hcm);
+}
+
+function normalizeStockRows(rows) {
+  return normalizeArray(rows)
+    .map((row) => ({
+      sku: normalizeString(row.sku),
+      product: normalizeString(row.product),
+      boxes: toNum(row.boxes),
+      notes: normalizeString(row.notes)
+    }))
+    .filter((row) => row.sku || row.product || row.boxes);
+}
+
+function normalizeCalculatorRows(rows) {
+  return normalizeArray(rows)
+    .map((row) => ({
+      product: normalizeString(row.product),
+      sku: normalizeString(row.sku),
+      boxes: toNum(row.boxes),
+      lcm: toNum(row.lcm),
+      wcm: toNum(row.wcm),
+      hcm: toNum(row.hcm),
+      notes: normalizeString(row.notes)
+    }))
+    .filter((row) => row.product || row.sku || row.boxes || row.lcm || row.wcm || row.hcm);
+}
+
+function buildMappedCalculatorRows(itemMaster, stockRows) {
+  const itemMap = new Map();
+  normalizeItemMasterRows(itemMaster).forEach((row) => {
+    const key = normalizeSku(row.sku);
+    if (key) itemMap.set(key, row);
+  });
+
+  return normalizeStockRows(stockRows).map((row) => {
+    const item = itemMap.get(normalizeSku(row.sku));
+    const notes = [
+      item && item.notes ? item.notes : '',
+      row.notes || '',
+      item ? '' : 'Missing item master match'
+    ].filter(Boolean).join(' | ');
+
+    return {
+      product: row.product || (item ? item.product : ''),
+      sku: row.sku || '',
+      boxes: toNum(row.boxes),
+      lcm: item ? toNum(item.lcm) : 0,
+      wcm: item ? toNum(item.wcm) : 0,
+      hcm: item ? toNum(item.hcm) : 0,
+      notes
+    };
+  });
+}
+
+function normalizeStatePayload(payload) {
+  const safePayload = normalizeObject(payload);
+  const incomingItemMaster = normalizeArray(safePayload.itemMaster);
+  const incomingStockRows = normalizeArray(safePayload.stockRows);
+  const settings = normalizeObject(safePayload.settings);
+  const rows = normalizeCalculatorRows(safePayload.rows);
+  const itemMaster = normalizeItemMasterRows(incomingItemMaster.length ? incomingItemMaster : itemRowsFromCalculatorRows(rows));
+  const stockRows = normalizeStockRows(incomingStockRows.length ? incomingStockRows : stockRowsFromCalculatorRows(rows));
+  return {
+    settings,
+    rows: rows.length ? rows : buildMappedCalculatorRows(itemMaster, stockRows),
+    itemMaster,
+    stockRows,
+    selectedIndex: Number.isFinite(Number(safePayload.selectedIndex)) ? Math.max(0, Number(safePayload.selectedIndex)) : 0
+  };
 }
 
 async function readJsonBody(req) {
@@ -111,6 +207,7 @@ async function readJsonBody(req) {
         resolve({});
         return;
       }
+
       try {
         resolve(JSON.parse(raw));
       } catch (error) {
@@ -122,6 +219,216 @@ async function readJsonBody(req) {
   });
 }
 
+async function replaceRows(client, tableName, datasetId, columns, rows) {
+  await client.query(`DELETE FROM ${tableName} WHERE dataset_id = $1`, [datasetId]);
+  if (!rows.length) return;
+
+  const values = [];
+  const placeholders = rows.map((row, index) => {
+    const rowValues = [datasetId, ...columns.map((column) => row[column])];
+    values.push(...rowValues);
+    const start = index * rowValues.length;
+    return `(${rowValues.map((_, valueIndex) => `$${start + valueIndex + 1}`).join(', ')})`;
+  }).join(', ');
+
+  await client.query(
+    `INSERT INTO ${tableName} (dataset_id, ${columns.join(', ')}) VALUES ${placeholders}`,
+    values
+  );
+}
+
+async function writeMappedState(client, datasetId, payload) {
+  await client.query(`
+    INSERT INTO app_config (id, settings, selected_index, updated_at)
+    VALUES ($1, $2, $3, NOW())
+    ON CONFLICT (id) DO UPDATE SET
+      settings = EXCLUDED.settings,
+      selected_index = EXCLUDED.selected_index,
+      updated_at = NOW()
+  `, [datasetId, payload.settings, payload.selectedIndex]);
+
+  await replaceRows(client, 'item_master_rows', datasetId, ['sort_order', 'sku', 'product', 'lcm', 'wcm', 'hcm', 'notes'],
+    payload.itemMaster.map((row, index) => ({
+      sort_order: index,
+      sku: row.sku,
+      product: row.product,
+      lcm: row.lcm,
+      wcm: row.wcm,
+      hcm: row.hcm,
+      notes: row.notes
+    }))
+  );
+
+  await replaceRows(client, 'stock_rows', datasetId, ['sort_order', 'sku', 'product', 'boxes', 'notes'],
+    payload.stockRows.map((row, index) => ({
+      sort_order: index,
+      sku: row.sku,
+      product: row.product,
+      boxes: row.boxes,
+      notes: row.notes
+    }))
+  );
+
+  await replaceRows(client, 'calculator_rows', datasetId, ['sort_order', 'sku', 'product', 'boxes', 'lcm', 'wcm', 'hcm', 'notes'],
+    payload.rows.map((row, index) => ({
+      sort_order: index,
+      sku: row.sku,
+      product: row.product,
+      boxes: row.boxes,
+      lcm: row.lcm,
+      wcm: row.wcm,
+      hcm: row.hcm,
+      notes: row.notes
+    }))
+  );
+}
+
+async function readMappedState(client, datasetId) {
+  const [configResult, itemResult, stockResult, calcResult] = await Promise.all([
+    client.query(`
+      SELECT id, settings, selected_index AS "selectedIndex", updated_at AS "updatedAt"
+      FROM app_config
+      WHERE id = $1
+      LIMIT 1
+    `, [datasetId]),
+    client.query(`
+      SELECT sku, product, lcm, wcm, hcm, notes
+      FROM item_master_rows
+      WHERE dataset_id = $1
+      ORDER BY sort_order ASC, id ASC
+    `, [datasetId]),
+    client.query(`
+      SELECT sku, product, boxes, notes
+      FROM stock_rows
+      WHERE dataset_id = $1
+      ORDER BY sort_order ASC, id ASC
+    `, [datasetId]),
+    client.query(`
+      SELECT sku, product, boxes, lcm, wcm, hcm, notes
+      FROM calculator_rows
+      WHERE dataset_id = $1
+      ORDER BY sort_order ASC, id ASC
+    `, [datasetId])
+  ]);
+
+  const config = configResult.rows[0] || null;
+  const itemMaster = normalizeItemMasterRows(itemResult.rows);
+  const stockRows = normalizeStockRows(stockResult.rows);
+  const calcRows = normalizeCalculatorRows(calcResult.rows);
+  const rows = calcRows.length ? calcRows : buildMappedCalculatorRows(itemMaster, stockRows);
+  const found = Boolean(config || itemMaster.length || stockRows.length || rows.length);
+
+  return {
+    found,
+    updatedAt: config ? config.updatedAt : null,
+    state: found ? {
+      settings: config ? normalizeObject(config.settings) : {},
+      rows,
+      itemMaster,
+      stockRows,
+      selectedIndex: config && Number.isFinite(Number(config.selectedIndex)) ? Number(config.selectedIndex) : 0
+    } : null
+  };
+}
+
+async function migrateLegacyState(client) {
+  const existing = await readMappedState(client, DEFAULT_STATE_ID);
+  if (existing.found) return;
+
+  const legacyResult = await client.query(`
+    SELECT
+      settings,
+      rows,
+      item_master AS "itemMaster",
+      stock_rows AS "stockRows",
+      selected_index AS "selectedIndex"
+    FROM app_state
+    WHERE id = $1
+    LIMIT 1
+  `, [DEFAULT_STATE_ID]).catch(() => ({ rows: [] }));
+
+  if (!legacyResult.rows.length) return;
+  const payload = normalizeStatePayload(legacyResult.rows[0]);
+  await writeMappedState(client, DEFAULT_STATE_ID, payload);
+}
+
+async function ensureDb() {
+  if (!pool) return false;
+  if (!dbReadyPromise) {
+    dbReadyPromise = (async () => {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS app_config (
+            id TEXT PRIMARY KEY,
+            settings JSONB NOT NULL DEFAULT '{}'::jsonb,
+            selected_index INTEGER NOT NULL DEFAULT 0,
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          )
+        `);
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS item_master_rows (
+            id BIGSERIAL PRIMARY KEY,
+            dataset_id TEXT NOT NULL REFERENCES app_config(id) ON DELETE CASCADE,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            sku TEXT NOT NULL DEFAULT '',
+            product TEXT NOT NULL DEFAULT '',
+            lcm DOUBLE PRECISION NOT NULL DEFAULT 0,
+            wcm DOUBLE PRECISION NOT NULL DEFAULT 0,
+            hcm DOUBLE PRECISION NOT NULL DEFAULT 0,
+            notes TEXT NOT NULL DEFAULT '',
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          )
+        `);
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS stock_rows (
+            id BIGSERIAL PRIMARY KEY,
+            dataset_id TEXT NOT NULL REFERENCES app_config(id) ON DELETE CASCADE,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            sku TEXT NOT NULL DEFAULT '',
+            product TEXT NOT NULL DEFAULT '',
+            boxes DOUBLE PRECISION NOT NULL DEFAULT 0,
+            notes TEXT NOT NULL DEFAULT '',
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          )
+        `);
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS calculator_rows (
+            id BIGSERIAL PRIMARY KEY,
+            dataset_id TEXT NOT NULL REFERENCES app_config(id) ON DELETE CASCADE,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            sku TEXT NOT NULL DEFAULT '',
+            product TEXT NOT NULL DEFAULT '',
+            boxes DOUBLE PRECISION NOT NULL DEFAULT 0,
+            lcm DOUBLE PRECISION NOT NULL DEFAULT 0,
+            wcm DOUBLE PRECISION NOT NULL DEFAULT 0,
+            hcm DOUBLE PRECISION NOT NULL DEFAULT 0,
+            notes TEXT NOT NULL DEFAULT '',
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          )
+        `);
+        await client.query(`CREATE INDEX IF NOT EXISTS item_master_rows_dataset_order_idx ON item_master_rows (dataset_id, sort_order, id)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS item_master_rows_dataset_sku_idx ON item_master_rows (dataset_id, upper(trim(sku)))`);
+        await client.query(`CREATE INDEX IF NOT EXISTS stock_rows_dataset_order_idx ON stock_rows (dataset_id, sort_order, id)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS stock_rows_dataset_sku_idx ON stock_rows (dataset_id, upper(trim(sku)))`);
+        await client.query(`CREATE INDEX IF NOT EXISTS calculator_rows_dataset_order_idx ON calculator_rows (dataset_id, sort_order, id)`);
+        await migrateLegacyState(client);
+        await client.query('COMMIT');
+      } catch (error) {
+        await client.query('ROLLBACK');
+        dbReadyPromise = null;
+        throw error;
+      } finally {
+        client.release();
+      }
+    })();
+  }
+
+  await dbReadyPromise;
+  return true;
+}
+
 async function handleHealth(res) {
   let dbReady = false;
   try {
@@ -129,10 +436,12 @@ async function handleHealth(res) {
   } catch (error) {
     dbReady = false;
   }
+
   sendJson(res, 200, {
     ok: true,
     dbEnabled: Boolean(pool),
-    dbReady
+    dbReady,
+    storage: dbReady ? 'mapped-postgres-tables' : 'browser-only'
   });
 }
 
@@ -142,38 +451,19 @@ async function handleGetState(res) {
     return;
   }
 
-  const result = await pool.query(`
-    SELECT
-      settings,
-      rows,
-      item_master AS "itemMaster",
-      stock_rows AS "stockRows",
-      selected_index AS "selectedIndex",
-      updated_at AS "updatedAt"
-    FROM app_state
-    WHERE id = $1
-    LIMIT 1
-  `, [DEFAULT_STATE_ID]);
-
-  if (!result.rows.length) {
-    sendJson(res, 200, { ok: true, enabled: true, found: false });
-    return;
+  const client = await pool.connect();
+  try {
+    const result = await readMappedState(client, DEFAULT_STATE_ID);
+    sendJson(res, 200, {
+      ok: true,
+      enabled: true,
+      found: result.found,
+      updatedAt: result.updatedAt,
+      state: result.state
+    });
+  } finally {
+    client.release();
   }
-
-  const row = result.rows[0];
-  sendJson(res, 200, {
-    ok: true,
-    enabled: true,
-    found: true,
-    updatedAt: row.updatedAt,
-    state: {
-      settings: normalizeObject(row.settings),
-      rows: normalizeArray(row.rows),
-      itemMaster: normalizeArray(row.itemMaster),
-      stockRows: normalizeArray(row.stockRows),
-      selectedIndex: Number.isFinite(Number(row.selectedIndex)) ? Number(row.selectedIndex) : 0
-    }
-  });
 }
 
 async function handleSaveState(req, res) {
@@ -183,38 +473,34 @@ async function handleSaveState(req, res) {
   }
 
   const payload = normalizeStatePayload(await readJsonBody(req));
-  const result = await pool.query(`
-    INSERT INTO app_state (
-      id,
-      settings,
-      rows,
-      item_master,
-      stock_rows,
-      selected_index,
-      updated_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
-    ON CONFLICT (id) DO UPDATE SET
-      settings = EXCLUDED.settings,
-      rows = EXCLUDED.rows,
-      item_master = EXCLUDED.item_master,
-      stock_rows = EXCLUDED.stock_rows,
-      selected_index = EXCLUDED.selected_index,
-      updated_at = NOW()
-    RETURNING updated_at AS "updatedAt"
-  `, [
-    DEFAULT_STATE_ID,
-    payload.settings,
-    payload.rows,
-    payload.itemMaster,
-    payload.stockRows,
-    payload.selectedIndex
-  ]);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await writeMappedState(client, DEFAULT_STATE_ID, payload);
+    const result = await client.query(`
+      SELECT updated_at AS "updatedAt"
+      FROM app_config
+      WHERE id = $1
+      LIMIT 1
+    `, [DEFAULT_STATE_ID]);
+    await client.query('COMMIT');
 
-  sendJson(res, 200, {
-    ok: true,
-    enabled: true,
-    updatedAt: result.rows[0].updatedAt
-  });
+    sendJson(res, 200, {
+      ok: true,
+      enabled: true,
+      updatedAt: result.rows[0] ? result.rows[0].updatedAt : null,
+      counts: {
+        itemMaster: payload.itemMaster.length,
+        stockRows: payload.stockRows.length,
+        calculatorRows: payload.rows.length
+      }
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 async function handleApi(req, res) {
@@ -279,7 +565,7 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, () => {
   console.log(`Wellforia app listening on port ${PORT}`);
   if (pool) {
-    console.log('Railway database mode enabled.');
+    console.log('Railway database mode enabled with mapped tables.');
   } else {
     console.log('Railway database mode disabled. Set DATABASE_URL to enable shared saving.');
   }
