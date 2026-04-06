@@ -6,49 +6,99 @@
 <title>Pallet Position Calculator v3 - 60in Rack to 72in Billing</title>
 <style>
   :root {
-    --bg: #f4f7fb;
-    --card: #ffffff;
-    --text: #1f2937;
-    --muted: #6b7280;
-    --line: #d9e2ec;
-    --good: #e8f7ee;
-    --warn: #fff7e6;
-    --bad: #fdecec;
-    --accent: #1d4ed8;
+    --bg: #eef3f6;
+    --card: rgba(255, 255, 255, 0.94);
+    --card-strong: #ffffff;
+    --text: #102031;
+    --muted: #607386;
+    --line: #d3dde6;
+    --good: #e7f7ef;
+    --warn: #fff2d8;
+    --bad: #fee5df;
+    --accent: #124c7f;
+    --accent-strong: #0a3558;
+    --accent-soft: #dcecf8;
+    --hero: linear-gradient(135deg, #0f3250 0%, #145d8f 52%, #4a95ba 100%);
+    --shadow: 0 20px 45px rgba(16, 32, 49, 0.09);
+    --shadow-soft: 0 10px 28px rgba(16, 32, 49, 0.06);
+    --radius: 18px;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    font-family: Arial, Helvetica, sans-serif;
-    background: var(--bg);
+    font-family: "Segoe UI", "Trebuchet MS", Arial, sans-serif;
+    background:
+      radial-gradient(circle at top left, rgba(255,255,255,0.9), transparent 28%),
+      linear-gradient(180deg, #f7fafc 0%, #edf2f6 28%, #e3ebf1 100%);
     color: var(--text);
   }
   .wrap {
-    max-width: 1700px;
+    max-width: 1760px;
     margin: 0 auto;
-    padding: 20px;
+    padding: 24px;
   }
   h1 {
-    margin: 0 0 8px;
-    font-size: 28px;
+    margin: 0;
+    font-size: clamp(28px, 4vw, 44px);
+    line-height: 1.02;
+    letter-spacing: -0.03em;
   }
   .sub {
     color: var(--muted);
-    margin-bottom: 18px;
-    line-height: 1.4;
+    margin: 12px 0 0;
+    line-height: 1.55;
+    max-width: 78ch;
+    font-size: 15px;
   }
   .grid {
     display: grid;
     grid-template-columns: repeat(8, minmax(150px, 1fr));
-    gap: 12px;
-    margin-bottom: 16px;
+    gap: 14px;
+    margin-bottom: 18px;
   }
   .card {
     background: var(--card);
     border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 14px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: var(--shadow-soft);
+    backdrop-filter: blur(10px);
+  }
+  .hero {
+    padding: 26px 28px;
+    margin-bottom: 18px;
+    background:
+      radial-gradient(circle at top right, rgba(255,255,255,0.28), transparent 24%),
+      var(--hero);
+    color: #f5fbff;
+    border: 1px solid rgba(255,255,255,0.14);
+    box-shadow: var(--shadow);
+  }
+  .hero .sub {
+    color: rgba(240, 248, 255, 0.82);
+  }
+  .hero-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .hero-badges {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+  }
+  .hero-badge {
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.14);
+    border: 1px solid rgba(255,255,255,0.18);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
   }
   .field label {
     display: block;
@@ -62,50 +112,67 @@
   }
   .field input, .field select, .field textarea {
     width: 100%;
-    padding: 10px;
-    border: 1px solid #c8d3df;
-    border-radius: 8px;
+    padding: 11px 12px;
+    border: 1px solid #c8d4df;
+    border-radius: 12px;
     font-size: 14px;
-    background: #fff;
+    background: rgba(255,255,255,0.94);
+    transition: border-color 120ms ease, box-shadow 120ms ease;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus, td input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.14);
   }
   .toolbar {
     display: flex;
-    gap: 8px;
+    gap: 10px;
     flex-wrap: wrap;
-    margin: 12px 0 16px;
+    margin: 12px 0 18px;
   }
   button {
     border: 0;
-    border-radius: 10px;
-    padding: 10px 14px;
+    border-radius: 12px;
+    padding: 11px 15px;
     cursor: pointer;
     font-weight: bold;
-    background: #e5e7eb;
+    background: #e6edf3;
     color: #111827;
+    box-shadow: 0 8px 18px rgba(16, 32, 49, 0.08);
+    transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
   }
-  button.primary { background: var(--accent); color: #fff; }
-  button.warn { background: #f59e0b; color: #fff; }
-  button.danger { background: #dc2626; color: #fff; }
-  button.ghost { background: #dbeafe; color: #1e3a8a; }
+  button:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.02);
+    box-shadow: 0 14px 24px rgba(16, 32, 49, 0.12);
+  }
+  button.primary { background: linear-gradient(180deg, var(--accent), var(--accent-strong)); color: #fff; }
+  button.warn { background: linear-gradient(180deg, #f7b84f, #e49110); color: #fff; }
+  button.danger { background: linear-gradient(180deg, #e35f52, #c43f35); color: #fff; }
+  button.ghost { background: var(--accent-soft); color: var(--accent-strong); }
   .summary {
     display: grid;
     grid-template-columns: repeat(6, minmax(180px, 1fr));
-    gap: 12px;
-    margin-bottom: 16px;
+    gap: 14px;
+    margin-bottom: 18px;
   }
   .tabs {
     display: flex;
-    gap: 8px;
+    gap: 10px;
     flex-wrap: wrap;
-    margin-bottom: 16px;
+    margin-bottom: 18px;
   }
   .tab-btn {
-    background: #e2e8f0;
+    background: rgba(255,255,255,0.7);
     color: var(--muted);
+    border: 1px solid rgba(211, 221, 230, 0.9);
+    box-shadow: none;
   }
   .tab-btn.active {
-    background: var(--accent);
+    background: linear-gradient(180deg, var(--accent), var(--accent-strong));
     color: #fff;
+    border-color: transparent;
+    box-shadow: 0 10px 24px rgba(18, 76, 127, 0.24);
   }
   .tab-panel {
     display: none;
@@ -122,14 +189,16 @@
     letter-spacing: 0.04em;
   }
   .metric .value {
-    font-size: 26px;
-    font-weight: 700;
+    font-size: 30px;
+    font-weight: 800;
+    line-height: 1.05;
   }
   .table-wrap {
     overflow: auto;
-    background: var(--card);
+    background: var(--card-strong);
     border: 1px solid var(--line);
-    border-radius: 12px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-soft);
   }
   table {
     width: 100%;
@@ -138,7 +207,7 @@
   }
   th, td {
     border-bottom: 1px solid var(--line);
-    padding: 8px;
+    padding: 10px 10px;
     text-align: left;
     vertical-align: top;
     font-size: 13px;
@@ -147,27 +216,31 @@
     position: sticky;
     top: 0;
     z-index: 2;
-    background: #eef4ff;
+    background: linear-gradient(180deg, #eff5fa, #e4edf4);
     white-space: nowrap;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
   }
   td input {
     width: 100%;
     min-width: 80px;
-    padding: 8px;
+    padding: 9px 10px;
     border: 1px solid #cbd5e1;
-    border-radius: 8px;
+    border-radius: 10px;
     font-size: 13px;
+    background: #fff;
   }
-  tr.good { background: #fbfefc; }
-  tr.warn { background: var(--warn); }
-  tr.bad { background: var(--bad); }
+  tr.good { background: rgba(231, 247, 239, 0.52); }
+  tr.warn { background: rgba(255, 242, 216, 0.66); }
+  tr.bad { background: rgba(254, 229, 223, 0.7); }
   tr.selected {
-    outline: 2px solid #1d4ed8;
+    outline: 2px solid #2563eb;
     outline-offset: -2px;
   }
   .tag {
     display: inline-block;
-    padding: 4px 8px;
+    padding: 5px 9px;
     border-radius: 999px;
     font-size: 12px;
     font-weight: bold;
@@ -181,13 +254,14 @@
     font-size: 13px;
     color: var(--muted);
     line-height: 1.45;
+    background: rgba(255,255,255,0.78);
   }
   .formula {
     font-family: "Courier New", monospace;
-    background: #f8fafc;
+    background: #f7fafc;
     border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 10px;
+    border-radius: 12px;
+    padding: 12px;
     margin-top: 12px;
     overflow: auto;
   }
@@ -201,7 +275,7 @@
   }
   .status {
     display: inline-block;
-    padding: 6px 10px;
+    padding: 7px 11px;
     border-radius: 999px;
     font-size: 12px;
     font-weight: bold;
@@ -219,11 +293,11 @@
     display: grid;
     place-items: center;
     background:
-      linear-gradient(180deg, rgba(238,244,255,0.9), rgba(255,255,255,0.95)),
-      repeating-linear-gradient(90deg, rgba(29,78,216,0.05), rgba(29,78,216,0.05) 1px, transparent 1px, transparent 36px),
-      repeating-linear-gradient(0deg, rgba(29,78,216,0.05), rgba(29,78,216,0.05) 1px, transparent 1px, transparent 36px);
+      linear-gradient(180deg, rgba(236,244,250,0.95), rgba(255,255,255,0.96)),
+      repeating-linear-gradient(90deg, rgba(18,76,127,0.05), rgba(18,76,127,0.05) 1px, transparent 1px, transparent 36px),
+      repeating-linear-gradient(0deg, rgba(18,76,127,0.05), rgba(18,76,127,0.05) 1px, transparent 1px, transparent 36px);
     border: 1px solid var(--line);
-    border-radius: 12px;
+    border-radius: var(--radius);
     padding: 16px;
   }
   .preview-board {
@@ -281,9 +355,9 @@
     margin-top: 14px;
   }
   .info-box {
-    background: #f8fafc;
+    background: linear-gradient(180deg, #fafcff, #f5f9fc);
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: 14px;
     padding: 12px;
   }
   .info-box .label {
@@ -326,19 +400,46 @@
     text-align: center;
     padding: 24px;
   }
+  .metric.card {
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.98), rgba(247,250,252,0.96)),
+      linear-gradient(135deg, rgba(18,76,127,0.06), rgba(18,76,127,0.01));
+  }
+  .table-wrap::-webkit-scrollbar {
+    height: 12px;
+    width: 12px;
+  }
+  .table-wrap::-webkit-scrollbar-thumb {
+    background: #c5d3de;
+    border-radius: 999px;
+  }
+  .table-wrap::-webkit-scrollbar-track {
+    background: #eef3f6;
+  }
   @media (max-width: 1000px) {
     .grid, .summary, .info-grid { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
     .layout-two { grid-template-columns: 1fr; }
     h1 { font-size: 22px; }
+    .hero-top { flex-direction: column; }
   }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Pallet Position Calculator</h1>
-  <div class="sub">
-    Use this to calculate how many <strong>actual 60&quot; rack positions</strong> you use, then convert them into <strong>72&quot; billable pallet positions</strong> at <strong>$15 each</strong> using <strong>Option B</strong>.<br>
-    The tool also audits whether each carton can fit on a <strong>40 x 48 pallet</strong> with optional overhang, includes a pallet preview, and builds an invoice summary.
+  <div class="card hero">
+    <div class="hero-top">
+      <div>
+        <h1>Warehouse Pallet Position Calculator</h1>
+        <div class="sub">
+          Convert real 60&quot; rack usage into 72&quot; billable pallet positions, intake SKU dimensions from an item master, merge stock from a report or web entry, and generate a cleaner customer-facing storage summary.
+        </div>
+      </div>
+      <div class="hero-badges">
+        <span class="hero-badge">Item Master Intake</span>
+        <span class="hero-badge">Stock Report Merge</span>
+        <span class="hero-badge">Railway Ready</span>
+      </div>
+    </div>
   </div>
 
   <div class="grid">
@@ -352,8 +453,8 @@
     <div class="card field"><label>Billable Height Benchmark (in)</label><input id="billHeight" type="number" step="0.01" value="72"></div>
     <div class="card field"><label>Customer Billing Rate per 72&quot; Position ($)</label><input id="rate72" type="number" step="0.01" value="15"></div>
     <div class="card field wide">
-      <label>Excel Upload</label>
-      <div class="small">Import the customer worksheet directly. Expected columns: <strong>PRODUCT</strong>, <strong>SKU</strong>, <strong>Dimensions (cm)</strong>, and <strong>Boxes is Stock</strong>.</div>
+      <label>Combined Upload</label>
+      <div class="small">One-file shortcut. Import a worksheet that already includes <strong>PRODUCT</strong>, <strong>SKU</strong>, <strong>Dimensions (cm)</strong>, and <strong>Boxes is Stock</strong>.</div>
       <div class="upload-row">
         <button type="button" class="primary" id="uploadBtn">Upload Excel / CSV</button>
         <button type="button" class="ghost" id="reloadImportBtn">Reload Import Helper</button>
@@ -375,9 +476,92 @@
   </div>
 
   <div class="tabs">
+    <button class="tab-btn" type="button" data-tab="data">Data Intake</button>
     <button class="tab-btn active" type="button" data-tab="calc">Calculator</button>
     <button class="tab-btn" type="button" data-tab="preview">Pallet Preview</button>
     <button class="tab-btn" type="button" data-tab="invoice">Invoice Summary</button>
+  </div>
+
+  <div id="tab-data" class="tab-panel">
+    <div class="summary">
+      <div class="card metric"><div class="label">Item Master SKUs</div><div class="value" id="itemMasterCount">0</div></div>
+      <div class="card metric"><div class="label">Stock Lines</div><div class="value" id="stockLineCount">0</div></div>
+      <div class="card metric"><div class="label">Matched SKUs</div><div class="value" id="matchedSkuCount">0</div></div>
+      <div class="card metric"><div class="label">Unmatched Stock</div><div class="value" id="unmatchedSkuCount">0</div></div>
+      <div class="card metric"><div class="label">Ready For Calc</div><div class="value" id="intakeReadyCount">0</div></div>
+      <div class="card metric"><div class="label">Stock Boxes</div><div class="value" id="intakeBoxCount">0</div></div>
+    </div>
+
+    <div class="toolbar">
+      <button type="button" class="primary" id="buildFromIntakeBtn">Build Calculator Rows</button>
+      <button type="button" id="loadSeedIntoIntakeBtn">Load Sample Into Intake</button>
+      <button type="button" id="addItemMasterBtn">Add Item SKU</button>
+      <button type="button" id="addStockRowBtn">Add Stock Row</button>
+    </div>
+
+    <div class="layout-two">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+          <div>
+            <div class="small">Item Master</div>
+            <div style="font-size:20px;font-weight:700;">Upload Product Info And Dims</div>
+          </div>
+          <div class="upload-row" style="margin-top:0;">
+            <button type="button" class="primary" id="itemUploadBtn">Upload Item Master</button>
+            <button type="button" class="ghost" id="clearItemMasterBtn">Clear Items</button>
+            <input id="itemFileInput" type="file" accept=".xlsx,.xls,.csv" style="display:none">
+          </div>
+        </div>
+        <div class="small">Use this for SKU, product name, and carton dimensions. This becomes the dimension source used in the calculator.</div>
+        <div id="itemImportStatus" class="status warn" style="margin-top:10px;">Waiting for item master upload.</div>
+        <div class="table-wrap" style="margin-top:14px;">
+          <table id="itemMasterTable">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>SKU</th>
+                <th>L (cm)</th>
+                <th>W (cm)</th>
+                <th>H (cm)</th>
+                <th>Notes</th>
+                <th>Delete</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+          <div>
+            <div class="small">Stock Input</div>
+            <div style="font-size:20px;font-weight:700;">Upload Stock Report Or Enter Boxes Online</div>
+          </div>
+          <div class="upload-row" style="margin-top:0;">
+            <button type="button" class="primary" id="stockUploadBtn">Upload Stock Report</button>
+            <button type="button" class="ghost" id="clearStockBtn">Clear Stock</button>
+            <input id="stockFileInput" type="file" accept=".xlsx,.xls,.csv" style="display:none">
+          </div>
+        </div>
+        <div class="small">Use a stock report with SKU and quantity, or type the on-hand boxes directly into this web table.</div>
+        <div id="stockImportStatus" class="status warn" style="margin-top:10px;">Waiting for stock upload or web entry.</div>
+        <div class="table-wrap" style="margin-top:14px;">
+          <table id="stockTable">
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Product Override</th>
+                <th>Boxes In Stock</th>
+                <th>Notes</th>
+                <th>Delete</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div id="tab-calc" class="tab-panel active">
@@ -547,7 +731,14 @@ const seedData = [
   { product: 'WHOOPSIE TISSUE 12 PACK', sku: 'WT12', boxes: 30, lcm: 58.0, wcm: 43.5, hcm: 33.0, notes: '' },
   { product: 'MIXED / MANUAL ENTRY', sku: 'MANUAL', boxes: 0, lcm: 0, wcm: 0, hcm: 0, notes: 'Use this row for new SKUs.' }
 ];
-const state = { computed: [], selectedIndex: 0, xlsxReady: typeof XLSX !== 'undefined', xlsxPromise: null };
+const state = {
+  computed: [],
+  selectedIndex: 0,
+  xlsxReady: typeof XLSX !== 'undefined',
+  xlsxPromise: null,
+  itemMaster: [],
+  stockRows: []
+};
 
 function toNum(v) {
   const n = parseFloat(String(v ?? '').replace(/[^0-9.-]/g, ''));
@@ -565,6 +756,41 @@ function formatMoney(v) {
 
 function csvEsc(v) {
   return '"' + String(v ?? '').replace(/"/g, '""') + '"';
+}
+
+function normalizeSku(value) {
+  return String(value || '').trim().toUpperCase();
+}
+
+function itemRowsFromCalculatorRows(rows) {
+  const seen = new Set();
+  return rows
+    .filter((row) => row.product || row.sku || row.lcm || row.wcm || row.hcm)
+    .map((row) => ({
+      product: row.product || '',
+      sku: row.sku || '',
+      lcm: toNum(row.lcm),
+      wcm: toNum(row.wcm),
+      hcm: toNum(row.hcm),
+      notes: row.notes || ''
+    }))
+    .filter((row) => {
+      const key = normalizeSku(row.sku);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function stockRowsFromCalculatorRows(rows) {
+  return rows
+    .filter((row) => row.product || row.sku || row.boxes)
+    .map((row) => ({
+      sku: row.sku || '',
+      product: row.product || '',
+      boxes: toNum(row.boxes),
+      notes: row.notes || ''
+    }));
 }
 
 function getSettings() {
@@ -658,6 +884,151 @@ function getRowInputs(tr) {
     hcm: toNum(tr.querySelector('.hcm').value),
     notes: tr.querySelector('.notes').value.trim()
   };
+}
+
+function createBoundInput(value, onChange, type = 'text', step = 'any') {
+  const input = document.createElement('input');
+  input.value = value ?? '';
+  input.type = type;
+  if (type === 'number') input.step = step;
+  input.addEventListener('input', (event) => onChange(event.target.value));
+  return input;
+}
+
+function renderItemMasterTable() {
+  const tbody = document.querySelector('#itemMasterTable tbody');
+  tbody.innerHTML = '';
+  state.itemMaster.forEach((row, index) => {
+    const tr = document.createElement('tr');
+    const fields = [
+      createBoundInput(row.product || '', (value) => { state.itemMaster[index].product = value; }),
+      createBoundInput(row.sku || '', (value) => { state.itemMaster[index].sku = value; updateIntakeSummary(); }),
+      createBoundInput(row.lcm ?? 0, (value) => { state.itemMaster[index].lcm = toNum(value); updateIntakeSummary(); }, 'number', '0.01'),
+      createBoundInput(row.wcm ?? 0, (value) => { state.itemMaster[index].wcm = toNum(value); updateIntakeSummary(); }, 'number', '0.01'),
+      createBoundInput(row.hcm ?? 0, (value) => { state.itemMaster[index].hcm = toNum(value); updateIntakeSummary(); }, 'number', '0.01'),
+      createBoundInput(row.notes || '', (value) => { state.itemMaster[index].notes = value; })
+    ];
+    fields.forEach((input) => {
+      const td = document.createElement('td');
+      td.appendChild(input);
+      tr.appendChild(td);
+    });
+    const deleteTd = document.createElement('td');
+    deleteTd.innerHTML = '<button type="button" class="danger">Delete</button>';
+    deleteTd.querySelector('button').addEventListener('click', () => {
+      state.itemMaster.splice(index, 1);
+      renderItemMasterTable();
+      updateIntakeSummary();
+    });
+    tr.appendChild(deleteTd);
+    tbody.appendChild(tr);
+  });
+  if (!state.itemMaster.length) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td colspan="7" class="empty">Upload an item master or add SKU rows here.</td>';
+    tbody.appendChild(tr);
+  }
+}
+
+function renderStockTable() {
+  const tbody = document.querySelector('#stockTable tbody');
+  tbody.innerHTML = '';
+  state.stockRows.forEach((row, index) => {
+    const tr = document.createElement('tr');
+    const fields = [
+      createBoundInput(row.sku || '', (value) => { state.stockRows[index].sku = value; updateIntakeSummary(); }),
+      createBoundInput(row.product || '', (value) => { state.stockRows[index].product = value; }),
+      createBoundInput(row.boxes ?? 0, (value) => { state.stockRows[index].boxes = toNum(value); updateIntakeSummary(); }, 'number', '1'),
+      createBoundInput(row.notes || '', (value) => { state.stockRows[index].notes = value; })
+    ];
+    fields.forEach((input) => {
+      const td = document.createElement('td');
+      td.appendChild(input);
+      tr.appendChild(td);
+    });
+    const deleteTd = document.createElement('td');
+    deleteTd.innerHTML = '<button type="button" class="danger">Delete</button>';
+    deleteTd.querySelector('button').addEventListener('click', () => {
+      state.stockRows.splice(index, 1);
+      renderStockTable();
+      updateIntakeSummary();
+    });
+    tr.appendChild(deleteTd);
+    tbody.appendChild(tr);
+  });
+  if (!state.stockRows.length) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td colspan="5" class="empty">Upload a stock report or enter on-hand boxes directly in this table.</td>';
+    tbody.appendChild(tr);
+  }
+}
+
+function updateIntakeSummary() {
+  const itemMap = new Map();
+  state.itemMaster.forEach((row) => {
+    const key = normalizeSku(row.sku);
+    if (key) itemMap.set(key, row);
+  });
+
+  let matched = 0;
+  let unmatched = 0;
+  let ready = 0;
+  let stockBoxes = 0;
+  state.stockRows.forEach((row) => {
+    const key = normalizeSku(row.sku);
+    const item = key ? itemMap.get(key) : null;
+    if (row.boxes) stockBoxes += row.boxes;
+    if (key && item) {
+      matched += 1;
+      if (item.lcm && item.wcm && item.hcm) ready += 1;
+    } else if (key || row.boxes || row.product) {
+      unmatched += 1;
+    }
+  });
+
+  document.getElementById('itemMasterCount').textContent = formatNum(state.itemMaster.length, 0);
+  document.getElementById('stockLineCount').textContent = formatNum(state.stockRows.length, 0);
+  document.getElementById('matchedSkuCount').textContent = formatNum(matched, 0);
+  document.getElementById('unmatchedSkuCount').textContent = formatNum(unmatched, 0);
+  document.getElementById('intakeReadyCount').textContent = formatNum(ready, 0);
+  document.getElementById('intakeBoxCount').textContent = formatNum(stockBoxes, 0);
+}
+
+function buildCalculatorRowsFromIntake(openCalculator = true) {
+  const itemMap = new Map();
+  state.itemMaster.forEach((row) => {
+    const key = normalizeSku(row.sku);
+    if (key) itemMap.set(key, row);
+  });
+
+  const mergedRows = state.stockRows
+    .filter((row) => row.sku || row.product || row.boxes)
+    .map((row) => {
+      const item = itemMap.get(normalizeSku(row.sku));
+      const notes = [
+        item && item.notes ? item.notes : '',
+        row.notes || '',
+        item ? '' : 'Missing item master match'
+      ].filter(Boolean).join(' | ');
+      return {
+        product: row.product || (item ? item.product : ''),
+        sku: row.sku || '',
+        boxes: toNum(row.boxes),
+        lcm: item ? toNum(item.lcm) : 0,
+        wcm: item ? toNum(item.wcm) : 0,
+        hcm: item ? toNum(item.hcm) : 0,
+        notes
+      };
+    });
+
+  if (!mergedRows.length) {
+    alert('Load item master and stock data first, then build the calculator rows.');
+    return;
+  }
+
+  renderRows(mergedRows);
+  setImportStatus(`Built ${mergedRows.length} calculator rows from intake data.`, 'good');
+  if (openCalculator) openTab('calc');
 }
 
 function orientations([a, b, c]) {
@@ -953,7 +1324,13 @@ function renderInvoice() {
 }
 
 function collectData() {
-  return { settings: getSettings(), rows: Array.from(document.querySelectorAll('#skuTable tbody tr')).map(getRowInputs), selectedIndex: state.selectedIndex };
+  return {
+    settings: getSettings(),
+    rows: Array.from(document.querySelectorAll('#skuTable tbody tr')).map(getRowInputs),
+    selectedIndex: state.selectedIndex,
+    itemMaster: state.itemMaster,
+    stockRows: state.stockRows
+  };
 }
 
 function saveData() {
@@ -970,6 +1347,11 @@ function loadData() {
   const parsed = JSON.parse(raw);
   setSettings(parsed.settings || {});
   state.selectedIndex = parsed.selectedIndex || 0;
+  state.itemMaster = Array.isArray(parsed.itemMaster) ? parsed.itemMaster : itemRowsFromCalculatorRows(parsed.rows || []);
+  state.stockRows = Array.isArray(parsed.stockRows) ? parsed.stockRows : stockRowsFromCalculatorRows(parsed.rows || []);
+  renderItemMasterTable();
+  renderStockTable();
+  updateIntakeSummary();
   renderRows(parsed.rows || []);
 }
 
@@ -982,6 +1364,13 @@ function renderRows(rows) {
 function resetToSeed() {
   setSettings({ customerName: 'Customer Storage Estimate', reportLabel: 'Monthly Storage Review', palletL: 48, palletW: 40, overhang: 1, palletHeight: 5.5, rackHeight: 60, billHeight: 72, rate72: 15 });
   state.selectedIndex = 0;
+  state.itemMaster = itemRowsFromCalculatorRows(seedData);
+  state.stockRows = stockRowsFromCalculatorRows(seedData);
+  renderItemMasterTable();
+  renderStockTable();
+  updateIntakeSummary();
+  setItemImportStatus(`Loaded ${state.itemMaster.length} sample item SKUs.`, 'good');
+  setStockImportStatus(`Loaded ${state.stockRows.length} sample stock rows.`, 'good');
   renderRows(seedData);
 }
 
@@ -1026,6 +1415,18 @@ function printInvoice() {
 
 function setImportStatus(text, tone) {
   const el = document.getElementById('importStatus');
+  el.className = `status ${tone}`;
+  el.textContent = text;
+}
+
+function setItemImportStatus(text, tone) {
+  const el = document.getElementById('itemImportStatus');
+  el.className = `status ${tone}`;
+  el.textContent = text;
+}
+
+function setStockImportStatus(text, tone) {
+  const el = document.getElementById('stockImportStatus');
   el.className = `status ${tone}`;
   el.textContent = text;
 }
@@ -1137,6 +1538,32 @@ function normalizeRows(records) {
   }).filter((row) => row.product || row.sku || row.boxes || row.lcm || row.wcm || row.hcm);
 }
 
+function normalizeItemMasterRows(records) {
+  return records.map((record) => {
+    const dims = parseDims(valueFrom(record, ['Dimensions (cm)', 'Dimensions', 'Dimension']));
+    const ship = valueFrom(record, ['SHIPPING TO', 'Shipping To']);
+    const units = valueFrom(record, ['No. of Units in a Master Carton', 'Units / Carton']);
+    const weight = valueFrom(record, ['Gross Weight (Kg)', 'Gross Weight', 'Weight']);
+    return {
+      product: valueFrom(record, ['PRODUCT', 'Product', 'Item', 'Description']),
+      sku: valueFrom(record, ['SKU', 'Sku', 'Item SKU']),
+      lcm: dims.lcm || toNum(valueFrom(record, ['L (cm)', 'Length (cm)', 'Length'])),
+      wcm: dims.wcm || toNum(valueFrom(record, ['W (cm)', 'Width (cm)', 'Width'])),
+      hcm: dims.hcm || toNum(valueFrom(record, ['H (cm)', 'Height (cm)', 'Height'])),
+      notes: [ship ? `Ship to: ${ship}` : '', units ? `Units/carton: ${units}` : '', weight ? `Weight: ${weight}` : ''].filter(Boolean).join(' | ')
+    };
+  }).filter((row) => row.product || row.sku || row.lcm || row.wcm || row.hcm);
+}
+
+function normalizeStockRows(records) {
+  return records.map((record) => ({
+    sku: valueFrom(record, ['SKU', 'Sku', 'Item SKU']),
+    product: valueFrom(record, ['PRODUCT', 'Product', 'Item', 'Description']),
+    boxes: toNum(valueFrom(record, ['Boxes is Stock', 'Boxes in Stock', 'Boxes', 'Cases', 'Qty', 'QTY', 'On Hand', 'Stock', 'Available'])),
+    notes: [valueFrom(record, ['Source', 'SOURCE']), valueFrom(record, ['Location', 'Warehouse'])].filter(Boolean).join(' | ')
+  })).filter((row) => row.sku || row.product || row.boxes);
+}
+
 async function readSpreadsheetFile(file) {
   if (typeof file.arrayBuffer === 'function') {
     const buffer = await file.arrayBuffer();
@@ -1151,22 +1578,24 @@ async function readSpreadsheetFile(file) {
   });
 }
 
+async function parseRecordsFromFile(file) {
+  if (!file) return [];
+  if (file.name.toLowerCase().endsWith('.csv')) {
+    return parseCsv(await file.text());
+  }
+  const ready = await ensureXlsxLibrary();
+  if (!ready || typeof XLSX === 'undefined') {
+    throw new Error('Excel parsing is unavailable. Try a CSV export instead.');
+  }
+  const buffer = await readSpreadsheetFile(file);
+  const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
+  return XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: '', raw: false });
+}
+
 async function handleFileUpload(file) {
   if (!file) return;
   try {
-    let records = [];
-    if (file.name.toLowerCase().endsWith('.csv')) {
-      records = parseCsv(await file.text());
-    } else {
-      const ready = await ensureXlsxLibrary();
-      if (!ready || typeof XLSX === 'undefined') {
-        alert('Excel parsing is unavailable. Try a CSV export instead.');
-        return;
-      }
-      const buffer = await readSpreadsheetFile(file);
-      const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
-      records = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: '', raw: false });
-    }
+    const records = await parseRecordsFromFile(file);
     const rows = normalizeRows(records);
     if (!rows.length) {
       setImportStatus('Upload completed, but no usable rows were found.', 'bad');
@@ -1174,12 +1603,59 @@ async function handleFileUpload(file) {
       return;
     }
     state.selectedIndex = 0;
+    state.itemMaster = itemRowsFromCalculatorRows(rows);
+    state.stockRows = stockRowsFromCalculatorRows(rows);
+    renderItemMasterTable();
+    renderStockTable();
+    updateIntakeSummary();
     renderRows(rows);
     setImportStatus(`Imported ${rows.length} rows from ${file.name}.`, 'good');
   } catch (error) {
     console.error(error);
     setImportStatus(`Upload failed: ${error && error.message ? error.message : 'unknown error'}`, 'bad');
     alert('The file could not be imported.');
+  }
+}
+
+async function handleItemMasterUpload(file) {
+  if (!file) return;
+  try {
+    const records = await parseRecordsFromFile(file);
+    const rows = normalizeItemMasterRows(records);
+    if (!rows.length) {
+      setItemImportStatus('Upload completed, but no item master rows were found.', 'bad');
+      alert('The item file did not contain recognizable SKU and dimension rows.');
+      return;
+    }
+    state.itemMaster = rows;
+    renderItemMasterTable();
+    updateIntakeSummary();
+    setItemImportStatus(`Imported ${rows.length} item SKUs from ${file.name}.`, 'good');
+  } catch (error) {
+    console.error(error);
+    setItemImportStatus(`Upload failed: ${error && error.message ? error.message : 'unknown error'}`, 'bad');
+    alert('The item master file could not be imported.');
+  }
+}
+
+async function handleStockUpload(file) {
+  if (!file) return;
+  try {
+    const records = await parseRecordsFromFile(file);
+    const rows = normalizeStockRows(records);
+    if (!rows.length) {
+      setStockImportStatus('Upload completed, but no stock rows were found.', 'bad');
+      alert('The stock report did not contain recognizable SKU and quantity rows.');
+      return;
+    }
+    state.stockRows = rows;
+    renderStockTable();
+    updateIntakeSummary();
+    setStockImportStatus(`Imported ${rows.length} stock lines from ${file.name}.`, 'good');
+  } catch (error) {
+    console.error(error);
+    setStockImportStatus(`Upload failed: ${error && error.message ? error.message : 'unknown error'}`, 'bad');
+    alert('The stock file could not be imported.');
   }
 }
 
@@ -1191,6 +1667,34 @@ document.getElementById('previewPicker').addEventListener('change', (event) => s
 document.getElementById('uploadBtn').addEventListener('click', () => document.getElementById('fileInput').click());
 document.getElementById('reloadImportBtn').addEventListener('click', () => { state.xlsxPromise = null; ensureXlsxLibrary(true); });
 document.getElementById('fileInput').addEventListener('change', async (event) => { await handleFileUpload(event.target.files[0]); event.target.value = ''; });
+document.getElementById('itemUploadBtn').addEventListener('click', () => document.getElementById('itemFileInput').click());
+document.getElementById('stockUploadBtn').addEventListener('click', () => document.getElementById('stockFileInput').click());
+document.getElementById('itemFileInput').addEventListener('change', async (event) => { await handleItemMasterUpload(event.target.files[0]); event.target.value = ''; });
+document.getElementById('stockFileInput').addEventListener('change', async (event) => { await handleStockUpload(event.target.files[0]); event.target.value = ''; });
+document.getElementById('buildFromIntakeBtn').addEventListener('click', () => buildCalculatorRowsFromIntake(true));
+document.getElementById('loadSeedIntoIntakeBtn').addEventListener('click', resetToSeed);
+document.getElementById('addItemMasterBtn').addEventListener('click', () => {
+  state.itemMaster.push({ product: '', sku: '', lcm: 0, wcm: 0, hcm: 0, notes: '' });
+  renderItemMasterTable();
+  updateIntakeSummary();
+});
+document.getElementById('addStockRowBtn').addEventListener('click', () => {
+  state.stockRows.push({ sku: '', product: '', boxes: 0, notes: 'Manual web entry' });
+  renderStockTable();
+  updateIntakeSummary();
+});
+document.getElementById('clearItemMasterBtn').addEventListener('click', () => {
+  state.itemMaster = [];
+  renderItemMasterTable();
+  updateIntakeSummary();
+  setItemImportStatus('Item master cleared.', 'warn');
+});
+document.getElementById('clearStockBtn').addEventListener('click', () => {
+  state.stockRows = [];
+  renderStockTable();
+  updateIntakeSummary();
+  setStockImportStatus('Stock rows cleared.', 'warn');
+});
 ensureXlsxLibrary();
 resetToSeed();
 </script>
