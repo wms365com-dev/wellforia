@@ -116,6 +116,46 @@ function stockRowsFromCalculatorRows(rows) {
     .filter((row) => row.sku || row.product || row.boxes);
 }
 
+function mergeItemMasterWithCalculatorRows(calculatorRows, existingItemMaster) {
+  const existingBySku = new Map();
+  const extraRows = [];
+
+  normalizeItemMasterRows(existingItemMaster).forEach((row) => {
+    const key = normalizeSku(row.sku);
+    if (key) existingBySku.set(key, row);
+    else extraRows.push(row);
+  });
+
+  const merged = [];
+  const seen = new Set();
+
+  normalizeCalculatorRows(calculatorRows).forEach((row) => {
+    const key = normalizeSku(row.sku);
+    const existing = key ? existingBySku.get(key) : null;
+    const itemRow = {
+      product: row.product || (existing ? existing.product : ''),
+      sku: row.sku || (existing ? existing.sku : ''),
+      lcm: toNum(row.lcm),
+      wcm: toNum(row.wcm),
+      hcm: toNum(row.hcm),
+      notes: row.notes || (existing ? existing.notes : '')
+    };
+
+    if (key) {
+      seen.add(key);
+      merged.push(itemRow);
+    } else if (itemRow.product || itemRow.lcm || itemRow.wcm || itemRow.hcm || itemRow.notes) {
+      merged.push(itemRow);
+    }
+  });
+
+  existingBySku.forEach((row, key) => {
+    if (!seen.has(key)) merged.push(row);
+  });
+
+  return normalizeItemMasterRows([...merged, ...extraRows]);
+}
+
 function normalizeItemMasterRows(rows) {
   return normalizeArray(rows)
     .map((row) => ({
@@ -187,8 +227,14 @@ function normalizeStatePayload(payload) {
   const incomingStockRows = normalizeArray(safePayload.stockRows);
   const settings = normalizeObject(safePayload.settings);
   const rows = normalizeCalculatorRows(safePayload.rows);
-  const itemMaster = normalizeItemMasterRows(incomingItemMaster.length ? incomingItemMaster : itemRowsFromCalculatorRows(rows));
-  const stockRows = normalizeStockRows(incomingStockRows.length ? incomingStockRows : stockRowsFromCalculatorRows(rows));
+  let itemMaster = normalizeItemMasterRows(incomingItemMaster.length ? incomingItemMaster : itemRowsFromCalculatorRows(rows));
+  let stockRows = normalizeStockRows(incomingStockRows.length ? incomingStockRows : stockRowsFromCalculatorRows(rows));
+
+  if (rows.length) {
+    itemMaster = mergeItemMasterWithCalculatorRows(rows, itemMaster);
+    stockRows = stockRowsFromCalculatorRows(rows);
+  }
+
   return {
     settings,
     rows: rows.length ? rows : buildMappedCalculatorRows(itemMaster, stockRows),
@@ -324,10 +370,14 @@ async function readMappedState(client, datasetId) {
   ]);
 
   const config = configResult.rows[0] || null;
-  const itemMaster = normalizeItemMasterRows(itemResult.rows);
-  const stockRows = normalizeStockRows(stockResult.rows);
+  let itemMaster = normalizeItemMasterRows(itemResult.rows);
+  let stockRows = normalizeStockRows(stockResult.rows);
   const calcRows = normalizeCalculatorRows(calcResult.rows);
   const rows = calcRows.length ? calcRows : buildMappedCalculatorRows(itemMaster, stockRows);
+  if (rows.length) {
+    itemMaster = mergeItemMasterWithCalculatorRows(rows, itemMaster);
+    stockRows = stockRowsFromCalculatorRows(rows);
+  }
   const found = Boolean(config || itemMaster.length || stockRows.length || rows.length);
 
   return {
@@ -506,22 +556,18 @@ async function handleSaveState(req, res) {
       await client.query(`SET search_path TO ${DB_SCHEMA}`);
       await client.query('BEGIN');
       await writeMappedState(client, DEFAULT_STATE_ID, payload);
-      const result = await client.query(`
-        SELECT updated_at AS "updatedAt"
-        FROM ${TABLES.config}
-        WHERE id = $1
-        LIMIT 1
-      `, [DEFAULT_STATE_ID]);
+      const saved = await readMappedState(client, DEFAULT_STATE_ID);
       await client.query('COMMIT');
 
       sendJson(res, 200, {
         ok: true,
         enabled: true,
-        updatedAt: result.rows[0] ? result.rows[0].updatedAt : null,
+        updatedAt: saved.updatedAt,
+        state: saved.state,
         counts: {
-          itemMaster: payload.itemMaster.length,
-          stockRows: payload.stockRows.length,
-          calculatorRows: payload.rows.length
+          itemMaster: saved.state ? saved.state.itemMaster.length : payload.itemMaster.length,
+          stockRows: saved.state ? saved.state.stockRows.length : payload.stockRows.length,
+          calculatorRows: saved.state ? saved.state.rows.length : payload.rows.length
         }
       });
       return;

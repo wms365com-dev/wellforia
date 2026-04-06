@@ -959,6 +959,80 @@ function stockRowsFromCalculatorRows(rows) {
     }));
 }
 
+function normalizeCalculatorRows(rows) {
+  return Array.isArray(rows)
+    ? rows
+      .map((row) => ({
+        product: String(row && row.product ? row.product : '').trim(),
+        sku: String(row && row.sku ? row.sku : '').trim(),
+        boxes: toNum(row && row.boxes),
+        lcm: toNum(row && row.lcm),
+        wcm: toNum(row && row.wcm),
+        hcm: toNum(row && row.hcm),
+        notes: String(row && row.notes ? row.notes : '').trim()
+      }))
+      .filter((row) => row.product || row.sku || row.boxes || row.lcm || row.wcm || row.hcm)
+    : [];
+}
+
+function mergeItemMasterWithCalculatorRows(rows, existingRows = []) {
+  const existingBySku = new Map();
+  const extraRows = [];
+
+  normalizeItemMasterRows(existingRows).forEach((row) => {
+    const key = normalizeSku(row.sku);
+    if (key) existingBySku.set(key, row);
+    else extraRows.push(row);
+  });
+
+  const merged = [];
+  const seen = new Set();
+
+  normalizeCalculatorRows(rows).forEach((row) => {
+    const key = normalizeSku(row.sku);
+    const existing = key ? existingBySku.get(key) : null;
+    const itemRow = {
+      product: row.product || (existing ? existing.product : ''),
+      sku: row.sku || (existing ? existing.sku : ''),
+      lcm: toNum(row.lcm),
+      wcm: toNum(row.wcm),
+      hcm: toNum(row.hcm),
+      notes: row.notes || (existing ? existing.notes : '')
+    };
+
+    if (key) {
+      seen.add(key);
+      merged.push(itemRow);
+    } else if (itemRow.product || itemRow.lcm || itemRow.wcm || itemRow.hcm || itemRow.notes) {
+      merged.push(itemRow);
+    }
+  });
+
+  existingBySku.forEach((row, key) => {
+    if (!seen.has(key)) merged.push(row);
+  });
+
+  return normalizeItemMasterRows([...merged, ...extraRows]);
+}
+
+function canonicalizePersistedStateData(payload = {}) {
+  const rows = normalizeCalculatorRows(payload.rows);
+  const itemMaster = rows.length
+    ? mergeItemMasterWithCalculatorRows(rows, payload.itemMaster)
+    : normalizeItemMasterRows(payload.itemMaster);
+  const stockRows = rows.length
+    ? stockRowsFromCalculatorRows(rows)
+    : normalizeStockRows(payload.stockRows);
+
+  return {
+    settings: payload.settings || {},
+    rows,
+    itemMaster,
+    stockRows,
+    selectedIndex: Number.isFinite(Number(payload.selectedIndex)) ? Math.max(0, Number(payload.selectedIndex)) : 0
+  };
+}
+
 function getSettings() {
   return {
     customerName: document.getElementById('customerName').value.trim() || 'Customer Storage Estimate',
@@ -1596,12 +1670,19 @@ function updateInvoiceRibbon(rows, totals, settings) {
 }
 
 function collectData() {
-  return {
+  const payload = canonicalizePersistedStateData({
     settings: getSettings(),
     rows: Array.from(document.querySelectorAll('#skuTable tbody tr')).map(getRowInputs),
     selectedIndex: state.selectedIndex,
     itemMaster: state.itemMaster,
     stockRows: state.stockRows
+  });
+  return {
+    settings: payload.settings,
+    rows: payload.rows,
+    selectedIndex: payload.selectedIndex,
+    itemMaster: payload.itemMaster,
+    stockRows: payload.stockRows
   };
 }
 
@@ -1653,15 +1734,16 @@ async function requestJson(url, options = {}) {
 }
 
 function applyPersistedState(payload) {
-  setSettings(payload.settings || {});
-  state.selectedIndex = payload.selectedIndex || 0;
-  state.itemMaster = Array.isArray(payload.itemMaster) ? payload.itemMaster : itemRowsFromCalculatorRows(payload.rows || []);
-  state.stockRows = Array.isArray(payload.stockRows) ? payload.stockRows : stockRowsFromCalculatorRows(payload.rows || []);
+  const data = canonicalizePersistedStateData(payload);
+  setSettings(data.settings || {});
+  state.selectedIndex = data.selectedIndex || 0;
+  state.itemMaster = data.itemMaster;
+  state.stockRows = data.stockRows;
   renderItemMasterTable();
   renderStockTable();
   state.intakeDirty = false;
   updateIntakeSummary();
-  renderRows(payload.rows || []);
+  renderRows(data.rows || []);
 }
 
 async function loadRemoteData(options = {}) {
@@ -1724,6 +1806,7 @@ async function saveRemoteData(options = {}) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(collectData())
     });
+    if (payload.state) applyPersistedState(payload.state);
     state.remoteChecked = true;
     state.remoteEnabled = Boolean(payload.enabled);
     setRemoteButtonsDisabled(false);
