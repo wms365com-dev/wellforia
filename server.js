@@ -364,6 +364,68 @@ async function migrateLegacyState(client) {
   await writeMappedState(client, DEFAULT_STATE_ID, payload);
 }
 
+async function bootstrapMappedTables(client, includeMigration = false) {
+  await client.query(`CREATE SCHEMA IF NOT EXISTS ${DB_SCHEMA}`);
+  await client.query(`SET search_path TO ${DB_SCHEMA}`);
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS ${TABLES.config} (
+      id TEXT PRIMARY KEY,
+      settings JSONB NOT NULL DEFAULT '{}'::jsonb,
+      selected_index INTEGER NOT NULL DEFAULT 0,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS ${TABLES.itemMaster} (
+      id BIGSERIAL PRIMARY KEY,
+      dataset_id TEXT NOT NULL REFERENCES ${TABLES.config}(id) ON DELETE CASCADE,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      sku TEXT NOT NULL DEFAULT '',
+      product TEXT NOT NULL DEFAULT '',
+      lcm DOUBLE PRECISION NOT NULL DEFAULT 0,
+      wcm DOUBLE PRECISION NOT NULL DEFAULT 0,
+      hcm DOUBLE PRECISION NOT NULL DEFAULT 0,
+      notes TEXT NOT NULL DEFAULT '',
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS ${TABLES.stock} (
+      id BIGSERIAL PRIMARY KEY,
+      dataset_id TEXT NOT NULL REFERENCES ${TABLES.config}(id) ON DELETE CASCADE,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      sku TEXT NOT NULL DEFAULT '',
+      product TEXT NOT NULL DEFAULT '',
+      boxes DOUBLE PRECISION NOT NULL DEFAULT 0,
+      notes TEXT NOT NULL DEFAULT '',
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS ${TABLES.calculator} (
+      id BIGSERIAL PRIMARY KEY,
+      dataset_id TEXT NOT NULL REFERENCES ${TABLES.config}(id) ON DELETE CASCADE,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      sku TEXT NOT NULL DEFAULT '',
+      product TEXT NOT NULL DEFAULT '',
+      boxes DOUBLE PRECISION NOT NULL DEFAULT 0,
+      lcm DOUBLE PRECISION NOT NULL DEFAULT 0,
+      wcm DOUBLE PRECISION NOT NULL DEFAULT 0,
+      hcm DOUBLE PRECISION NOT NULL DEFAULT 0,
+      notes TEXT NOT NULL DEFAULT '',
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await client.query(`CREATE INDEX IF NOT EXISTS item_master_rows_dataset_order_idx ON ${TABLES.itemMaster} (dataset_id, sort_order, id)`);
+  await client.query(`CREATE INDEX IF NOT EXISTS item_master_rows_dataset_sku_idx ON ${TABLES.itemMaster} (dataset_id, upper(trim(sku)))`);
+  await client.query(`CREATE INDEX IF NOT EXISTS stock_rows_dataset_order_idx ON ${TABLES.stock} (dataset_id, sort_order, id)`);
+  await client.query(`CREATE INDEX IF NOT EXISTS stock_rows_dataset_sku_idx ON ${TABLES.stock} (dataset_id, upper(trim(sku)))`);
+  await client.query(`CREATE INDEX IF NOT EXISTS calculator_rows_dataset_order_idx ON ${TABLES.calculator} (dataset_id, sort_order, id)`);
+  if (includeMigration) {
+    await migrateLegacyState(client);
+  }
+}
+
 async function ensureDb() {
   if (!pool) return false;
   if (!dbReadyPromise) {
@@ -371,63 +433,7 @@ async function ensureDb() {
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
-        await client.query(`CREATE SCHEMA IF NOT EXISTS ${DB_SCHEMA}`);
-        await client.query(`SET search_path TO ${DB_SCHEMA}`);
-        await client.query(`
-          CREATE TABLE IF NOT EXISTS ${TABLES.config} (
-            id TEXT PRIMARY KEY,
-            settings JSONB NOT NULL DEFAULT '{}'::jsonb,
-            selected_index INTEGER NOT NULL DEFAULT 0,
-            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-          )
-        `);
-        await client.query(`
-          CREATE TABLE IF NOT EXISTS ${TABLES.itemMaster} (
-            id BIGSERIAL PRIMARY KEY,
-            dataset_id TEXT NOT NULL REFERENCES ${TABLES.config}(id) ON DELETE CASCADE,
-            sort_order INTEGER NOT NULL DEFAULT 0,
-            sku TEXT NOT NULL DEFAULT '',
-            product TEXT NOT NULL DEFAULT '',
-            lcm DOUBLE PRECISION NOT NULL DEFAULT 0,
-            wcm DOUBLE PRECISION NOT NULL DEFAULT 0,
-            hcm DOUBLE PRECISION NOT NULL DEFAULT 0,
-            notes TEXT NOT NULL DEFAULT '',
-            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-          )
-        `);
-        await client.query(`
-          CREATE TABLE IF NOT EXISTS ${TABLES.stock} (
-            id BIGSERIAL PRIMARY KEY,
-            dataset_id TEXT NOT NULL REFERENCES ${TABLES.config}(id) ON DELETE CASCADE,
-            sort_order INTEGER NOT NULL DEFAULT 0,
-            sku TEXT NOT NULL DEFAULT '',
-            product TEXT NOT NULL DEFAULT '',
-            boxes DOUBLE PRECISION NOT NULL DEFAULT 0,
-            notes TEXT NOT NULL DEFAULT '',
-            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-          )
-        `);
-        await client.query(`
-          CREATE TABLE IF NOT EXISTS ${TABLES.calculator} (
-            id BIGSERIAL PRIMARY KEY,
-            dataset_id TEXT NOT NULL REFERENCES ${TABLES.config}(id) ON DELETE CASCADE,
-            sort_order INTEGER NOT NULL DEFAULT 0,
-            sku TEXT NOT NULL DEFAULT '',
-            product TEXT NOT NULL DEFAULT '',
-            boxes DOUBLE PRECISION NOT NULL DEFAULT 0,
-            lcm DOUBLE PRECISION NOT NULL DEFAULT 0,
-            wcm DOUBLE PRECISION NOT NULL DEFAULT 0,
-            hcm DOUBLE PRECISION NOT NULL DEFAULT 0,
-            notes TEXT NOT NULL DEFAULT '',
-            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-          )
-        `);
-        await client.query(`CREATE INDEX IF NOT EXISTS item_master_rows_dataset_order_idx ON ${TABLES.itemMaster} (dataset_id, sort_order, id)`);
-        await client.query(`CREATE INDEX IF NOT EXISTS item_master_rows_dataset_sku_idx ON ${TABLES.itemMaster} (dataset_id, upper(trim(sku)))`);
-        await client.query(`CREATE INDEX IF NOT EXISTS stock_rows_dataset_order_idx ON ${TABLES.stock} (dataset_id, sort_order, id)`);
-        await client.query(`CREATE INDEX IF NOT EXISTS stock_rows_dataset_sku_idx ON ${TABLES.stock} (dataset_id, upper(trim(sku)))`);
-        await client.query(`CREATE INDEX IF NOT EXISTS calculator_rows_dataset_order_idx ON ${TABLES.calculator} (dataset_id, sort_order, id)`);
-        await migrateLegacyState(client);
+        await bootstrapMappedTables(client, true);
         await client.query('COMMIT');
       } catch (error) {
         await client.query('ROLLBACK');
@@ -480,8 +486,7 @@ async function handleGetState(res) {
       return;
     } catch (error) {
       if (!isUndefinedTableError(error) || attempt === 1) throw error;
-      dbReadyPromise = null;
-      await ensureDb();
+      await bootstrapMappedTables(client, false);
     } finally {
       client.release();
     }
@@ -527,8 +532,7 @@ async function handleSaveState(req, res) {
         // Ignore rollback failures after the primary error.
       }
       if (!isUndefinedTableError(error) || attempt === 1) throw error;
-      dbReadyPromise = null;
-      await ensureDb();
+      await bootstrapMappedTables(client, false);
     } finally {
       client.release();
     }
