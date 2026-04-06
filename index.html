@@ -37,6 +37,26 @@
     margin: 0 auto;
     padding: 24px;
   }
+  .app-shell {
+    display: grid;
+    gap: 18px;
+  }
+  .workspace-sidebar,
+  .workspace-main {
+    min-width: 0;
+  }
+  .workspace-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .workspace-main {
+    display: grid;
+    gap: 14px;
+  }
+  .workspace-panels {
+    min-width: 0;
+  }
   h1 {
     margin: 0;
     font-size: clamp(28px, 4vw, 44px);
@@ -52,9 +72,9 @@
   }
   .grid {
     display: grid;
-    grid-template-columns: repeat(8, minmax(150px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px;
-    margin-bottom: 18px;
+    margin: 0;
   }
   .card {
     background: var(--card);
@@ -76,6 +96,93 @@
   }
   .hero .sub {
     color: rgba(240, 248, 255, 0.82);
+  }
+  .workflow-card {
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.98), rgba(245,249,252,0.96)),
+      linear-gradient(135deg, rgba(18,76,127,0.08), rgba(18,76,127,0.02));
+  }
+  .workflow-list {
+    display: grid;
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .workflow-step {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(18,76,127,0.08);
+    background: rgba(255,255,255,0.76);
+  }
+  .workflow-step strong {
+    display: block;
+    margin-bottom: 3px;
+  }
+  .workflow-num {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+    background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+    color: #fff;
+    font-size: 14px;
+    font-weight: 800;
+    box-shadow: 0 10px 18px rgba(18, 76, 127, 0.18);
+  }
+  .section-panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-soft);
+    overflow: hidden;
+  }
+  .section-panel > summary {
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 18px;
+    cursor: pointer;
+    background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(244,248,251,0.94));
+    border-bottom: 1px solid rgba(211, 221, 230, 0.9);
+  }
+  .section-panel > summary::-webkit-details-marker {
+    display: none;
+  }
+  .section-panel > summary::after {
+    content: 'Expand';
+    flex: 0 0 auto;
+    padding: 7px 11px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .section-panel[open] > summary::after {
+    content: 'Collapse';
+  }
+  .section-title {
+    font-size: 19px;
+    font-weight: 800;
+    line-height: 1.15;
+  }
+  .section-copy {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 4px;
+    line-height: 1.45;
+  }
+  .section-body {
+    padding: 16px 18px 18px;
+  }
+  .section-body.tight {
+    padding: 0;
   }
   .hero-top {
     display: flex;
@@ -136,9 +243,17 @@
     gap: 16px;
     margin-bottom: 18px;
   }
+  .action-bar.compact {
+    grid-template-columns: 1fr;
+    margin-bottom: 0;
+  }
   .action-groups {
     display: flex;
     flex-wrap: wrap;
+    gap: 12px;
+  }
+  .action-bar.compact .action-groups {
+    display: grid;
     gap: 12px;
   }
   .action-group {
@@ -176,6 +291,12 @@
       linear-gradient(135deg, rgba(10,53,88,0.98), rgba(18,76,127,0.94) 58%, rgba(74,149,186,0.92));
     box-shadow: var(--shadow);
     color: #f5fbff;
+  }
+  .invoice-ribbon.compact {
+    margin-bottom: 0;
+    border-radius: 0;
+    border: 0;
+    box-shadow: none;
   }
   .invoice-ribbon .small,
   .invoice-ribbon p {
@@ -262,7 +383,12 @@
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
-    margin-bottom: 18px;
+    margin-bottom: 0;
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.78);
+    border: 1px solid rgba(211, 221, 230, 0.92);
+    box-shadow: var(--shadow-soft);
   }
   .tab-btn {
     background: rgba(255,255,255,0.7);
@@ -528,123 +654,284 @@
     .grid, .summary, .info-grid, .invoice-ribbon-grid { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
     .layout-two { grid-template-columns: 1fr; }
     .action-bar { grid-template-columns: 1fr; }
+    .app-shell { grid-template-columns: 1fr; }
     h1 { font-size: 22px; }
     .hero-top { flex-direction: column; }
+  }
+  @media (max-width: 640px) {
+    .grid, .summary, .info-grid, .invoice-ribbon-grid {
+      grid-template-columns: 1fr;
+    }
+    .field.wide {
+      grid-column: span 1;
+    }
+  }
+  @media (min-width: 1180px) {
+    body {
+      overflow: hidden;
+    }
+    .wrap {
+      max-width: none;
+      height: 100dvh;
+      padding: 16px;
+    }
+    .app-shell {
+      grid-template-columns: 390px minmax(0, 1fr);
+      height: 100%;
+      align-items: stretch;
+    }
+    .workspace-sidebar {
+      max-height: calc(100dvh - 32px);
+      overflow: auto;
+      padding-right: 6px;
+    }
+    .workspace-main {
+      min-height: 0;
+      grid-template-rows: auto 1fr;
+    }
+    .workspace-panels {
+      min-height: 0;
+    }
+    .workspace-panels .tab-panel.active {
+      display: block;
+      height: 100%;
+      overflow: auto;
+      padding-right: 6px;
+    }
+    #tab-data .table-wrap,
+    #tab-invoice .table-wrap {
+      max-height: calc(100dvh - 425px);
+    }
+    #tab-calc .table-wrap {
+      max-height: calc(100dvh - 365px);
+    }
+    .tabs {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+    .preview-stage {
+      min-height: calc(100dvh - 390px);
+    }
+  }
+  @media print {
+    body {
+      overflow: visible;
+    }
+    .wrap {
+      height: auto;
+    }
+    .app-shell {
+      display: block;
+    }
+    .workspace-sidebar {
+      max-height: none;
+      overflow: visible;
+      padding-right: 0;
+    }
+    .workspace-panels .tab-panel.active {
+      height: auto;
+      overflow: visible;
+      padding-right: 0;
+    }
   }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="card hero">
-    <div class="hero-top">
-      <div>
-        <h1>Warehouse Pallet Position Calculator</h1>
-        <div class="sub">
-          Convert real 60&quot; rack usage into benchmark billable pallet positions, intake SKU dimensions from an item master, merge stock from a report or web entry, and generate a cleaner customer-facing storage summary.
+  <div class="app-shell">
+    <aside class="workspace-sidebar">
+      <div class="card hero">
+        <div class="hero-top">
+          <div>
+            <h1>Warehouse Pallet Position Calculator</h1>
+            <div class="sub">
+              Convert real 60&quot; rack usage into benchmark billable pallet positions, intake SKU dimensions from an item master, merge stock from a report or web entry, and generate a cleaner customer-facing storage summary.
+            </div>
+          </div>
+          <div class="hero-badges">
+            <span class="hero-badge">Item Master Intake</span>
+            <span class="hero-badge">Stock Report Merge</span>
+            <span class="hero-badge">Railway Ready</span>
+          </div>
         </div>
       </div>
-      <div class="hero-badges">
-        <span class="hero-badge">Item Master Intake</span>
-        <span class="hero-badge">Stock Report Merge</span>
-        <span class="hero-badge">Railway Ready</span>
-      </div>
-    </div>
-  </div>
 
-  <div class="grid">
-    <div class="card field"><label>Customer Name</label><input id="customerName" type="text" value="Customer Storage Estimate"></div>
-    <div class="card field"><label>Report Label</label><input id="reportLabel" type="text" value="Monthly Storage Review"></div>
-    <div class="card field"><label>Pallet Length (in)</label><input id="palletL" type="number" step="0.01" value="48"></div>
-    <div class="card field"><label>Pallet Width (in)</label><input id="palletW" type="number" step="0.01" value="40"></div>
-    <div class="card field"><label>Allowed Overhang per Side (in)</label><input id="overhang" type="number" step="0.01" value="1"></div>
-    <div class="card field"><label>Pallet Height (in)</label><input id="palletHeight" type="number" step="0.01" value="5.5"></div>
-    <div class="card field"><label>Rack Height Limit (in)</label><input id="rackHeight" type="number" step="0.01" value="60"></div>
-    <div class="card field"><label>Billable Height Benchmark (in)</label><input id="billHeight" type="number" step="0.01" value="76"></div>
-    <div class="card field"><label>Customer Billing Rate per Billable Position ($)</label><input id="rate72" type="number" step="0.01" value="15"></div>
-    <div class="card field wide">
-      <label>Combined Upload</label>
-      <div class="small">One-file shortcut. Import a worksheet that already includes <strong>PRODUCT</strong>, <strong>SKU</strong>, <strong>Dimensions (cm)</strong>, and <strong>Boxes is Stock</strong>.</div>
-      <div class="upload-row">
-        <button type="button" class="primary" id="uploadBtn">Upload Excel / CSV</button>
-        <button type="button" class="ghost" id="reloadImportBtn">Reload Import Helper</button>
-        <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" style="display:none">
+      <div class="card workflow-card">
+        <div class="small">Desktop Workflow</div>
+        <div style="font-size:22px;font-weight:800;line-height:1.12;margin-top:4px;">Run the app left to right.</div>
+        <div class="workflow-list">
+          <div class="workflow-step">
+            <div class="workflow-num">1</div>
+            <div>
+              <strong>Set pallet and billing rules</strong>
+              <div class="small">Confirm pallet size, overhang, rack height, billable height, and rate.</div>
+            </div>
+          </div>
+          <div class="workflow-step">
+            <div class="workflow-num">2</div>
+            <div>
+              <strong>Load item master and stock</strong>
+              <div class="small">Use Data Intake to upload dimensions and then boxes in stock.</div>
+            </div>
+          </div>
+          <div class="workflow-step">
+            <div class="workflow-num">3</div>
+            <div>
+              <strong>Review billing and pallet fit</strong>
+              <div class="small">Use Calculator, Preview, and Invoice tabs while the billing snapshot stays live.</div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div id="importStatus" class="status warn" style="margin-top:10px;">Loading Excel import helper...</div>
-    </div>
-  </div>
 
-  <div class="action-bar">
-    <div class="action-groups">
-      <div class="action-group">
-        <button type="button" class="primary" id="toolbarAddRowBtn">Add SKU Row</button>
-        <button type="button" id="toolbarRecalcBtn">Recalculate</button>
-        <button type="button" id="toolbarExportBtn">Export CSV</button>
-        <button type="button" class="ghost" id="toolbarOpenInvoiceBtn">Open Invoice</button>
-        <button type="button" class="ghost" id="toolbarPrintInvoiceBtn">Print Invoice Summary</button>
-      </div>
-      <div class="action-group">
-        <button type="button" id="toolbarSaveLocalBtn">Save Local</button>
-        <button type="button" id="toolbarLoadLocalBtn">Load Local</button>
-        <button type="button" class="ghost" id="toolbarSaveRailwayBtn">Save Railway</button>
-        <button type="button" class="ghost" id="toolbarLoadRailwayBtn">Load Railway</button>
-        <button type="button" class="warn" id="toolbarReloadSeedBtn">Reload Uploaded SKU Data</button>
-        <button type="button" class="danger" id="toolbarClearRowsBtn">Clear Rows</button>
-      </div>
-    </div>
-    <div class="action-meta">
-      <div>
-        <div class="small">Workflow</div>
-        <strong>Upload item master and stock, then let billing update in the background.</strong>
-      </div>
-      <div class="small" id="uiAssistText">Use Data Intake for uploads. Invoice totals stay in sync and the snapshot below updates live.</div>
-    </div>
-  </div>
+      <details class="section-panel" open data-section="workspaceSetup">
+        <summary>
+          <div>
+            <div class="small">Workspace Setup</div>
+            <div class="section-title">Pallet Rules, Customer, and Uploads</div>
+            <div class="section-copy">Keep the setup panel nearby, then collapse it once the account is configured.</div>
+          </div>
+        </summary>
+        <div class="section-body">
+          <div class="grid config-grid">
+            <div class="card field"><label>Customer Name</label><input id="customerName" type="text" value="Customer Storage Estimate"></div>
+            <div class="card field"><label>Report Label</label><input id="reportLabel" type="text" value="Monthly Storage Review"></div>
+            <div class="card field"><label>Pallet Length (in)</label><input id="palletL" type="number" step="0.01" value="48"></div>
+            <div class="card field"><label>Pallet Width (in)</label><input id="palletW" type="number" step="0.01" value="40"></div>
+            <div class="card field"><label>Allowed Overhang per Side (in)</label><input id="overhang" type="number" step="0.01" value="1"></div>
+            <div class="card field"><label>Pallet Height (in)</label><input id="palletHeight" type="number" step="0.01" value="5.5"></div>
+            <div class="card field"><label>Rack Height Limit (in)</label><input id="rackHeight" type="number" step="0.01" value="60"></div>
+            <div class="card field"><label>Billable Height Benchmark (in)</label><input id="billHeight" type="number" step="0.01" value="76"></div>
+            <div class="card field"><label>Customer Billing Rate per Billable Position ($)</label><input id="rate72" type="number" step="0.01" value="15"></div>
+            <div class="card field wide">
+              <label>Combined Upload</label>
+              <div class="small">One-file shortcut. Import a worksheet that already includes <strong>PRODUCT</strong>, <strong>SKU</strong>, <strong>Dimensions (cm)</strong>, and <strong>Boxes is Stock</strong>.</div>
+              <div class="upload-row">
+                <button type="button" class="primary" id="uploadBtn">Upload Excel / CSV</button>
+                <button type="button" class="ghost" id="reloadImportBtn">Reload Import Helper</button>
+                <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" style="display:none">
+              </div>
+              <div id="importStatus" class="status warn" style="margin-top:10px;">Loading Excel import helper...</div>
+            </div>
+          </div>
+        </div>
+      </details>
 
-  <div id="remoteStatus" class="status warn" style="display:inline-flex;max-width:100%;margin-bottom:18px;">Checking Railway database connection...</div>
+      <details class="section-panel" open data-section="workspaceActions">
+        <summary>
+          <div>
+            <div class="small">Actions And Sync</div>
+            <div class="section-title">Save, Load, Recalculate, and Clear</div>
+            <div class="section-copy">Your main controls live here so the workspace can stay focused on tables and preview.</div>
+          </div>
+        </summary>
+        <div class="section-body">
+          <div class="action-bar compact">
+            <div class="action-groups">
+              <div class="action-group">
+                <button type="button" class="primary" id="toolbarAddRowBtn">Add SKU Row</button>
+                <button type="button" id="toolbarRecalcBtn">Recalculate</button>
+                <button type="button" id="toolbarExportBtn">Export CSV</button>
+                <button type="button" class="ghost" id="toolbarOpenInvoiceBtn">Open Invoice</button>
+                <button type="button" class="ghost" id="toolbarPrintInvoiceBtn">Print Invoice Summary</button>
+              </div>
+              <div class="action-group">
+                <button type="button" id="toolbarSaveLocalBtn">Save Local</button>
+                <button type="button" id="toolbarLoadLocalBtn">Load Local</button>
+                <button type="button" class="ghost" id="toolbarSaveRailwayBtn">Save Railway</button>
+                <button type="button" class="ghost" id="toolbarLoadRailwayBtn">Load Railway</button>
+                <button type="button" class="warn" id="toolbarReloadSeedBtn">Reload Uploaded SKU Data</button>
+                <button type="button" class="danger" id="toolbarClearRowsBtn">Clear Rows</button>
+              </div>
+            </div>
+            <div class="action-meta">
+              <div>
+                <div class="small">Workflow</div>
+                <strong>Upload item master and stock, then let billing update in the background.</strong>
+              </div>
+              <div class="small" id="uiAssistText">Use Data Intake for uploads. Invoice totals stay in sync and the snapshot below updates live.</div>
+            </div>
+          </div>
+          <div id="remoteStatus" class="status warn" style="display:flex;max-width:100%;margin-top:14px;">Checking Railway database connection...</div>
+        </div>
+      </details>
 
-  <div class="invoice-ribbon">
-    <div class="invoice-ribbon-top">
-      <div>
-        <div class="small">Live Billing Snapshot</div>
-        <div style="font-size:28px;font-weight:800;line-height:1.05;" id="invoiceRibbonTitle">Invoice updates automatically in the background.</div>
-        <p id="invoiceRibbonNarrative" style="margin:8px 0 0;max-width:74ch;">Load or edit SKU and stock data and the calculator will keep the billing summary current.</p>
-      </div>
-      <div id="invoiceRibbonStatus" class="status good" style="background:rgba(209,250,229,0.18);color:#e7fff2;border:1px solid rgba(255,255,255,0.14);">Waiting for data</div>
-    </div>
-    <div class="invoice-ribbon-grid">
-      <div class="invoice-ribbon-card">
-        <div class="label">Actual Rack Positions</div>
-        <div class="value" id="invoiceRibbonActual">0.00</div>
-        <div class="hint">60" positions used</div>
-      </div>
-      <div class="invoice-ribbon-card">
-        <div class="label">Billable Positions</div>
-        <div class="value" id="invoiceRibbonBillable">0.00</div>
-        <div class="hint">Benchmark-equivalent positions</div>
-      </div>
-      <div class="invoice-ribbon-card">
-        <div class="label">Monthly Storage</div>
-        <div class="value" id="invoiceRibbonTotal">$0.00</div>
-        <div class="hint">Estimated customer charge</div>
-      </div>
-      <div class="invoice-ribbon-card">
-        <div class="label">Rows Ready</div>
-        <div class="value" id="invoiceRibbonReady">0</div>
-        <div class="hint">Rows with billable calculations</div>
-      </div>
-    </div>
-    <div class="invoice-ribbon-actions">
-      <button type="button" class="button-light" id="invoiceRibbonOpenBtn">Open Full Invoice</button>
-      <button type="button" class="button-light" id="invoiceRibbonPreviewBtn">Open Pallet Preview</button>
-    </div>
-  </div>
+      <details class="section-panel" open data-section="workspaceSnapshot">
+        <summary>
+          <div>
+            <div class="small">Live Billing Snapshot</div>
+            <div class="section-title">Keep The Invoice Totals Visible</div>
+            <div class="section-copy">Collapse this when you need more room, then reopen it to see the latest billing position counts.</div>
+          </div>
+        </summary>
+        <div class="section-body tight">
+          <div class="invoice-ribbon compact">
+            <div class="invoice-ribbon-top">
+              <div>
+                <div class="small">Live Billing Snapshot</div>
+                <div style="font-size:28px;font-weight:800;line-height:1.05;" id="invoiceRibbonTitle">Invoice updates automatically in the background.</div>
+                <p id="invoiceRibbonNarrative" style="margin:8px 0 0;max-width:74ch;">Load or edit SKU and stock data and the calculator will keep the billing summary current.</p>
+              </div>
+              <div id="invoiceRibbonStatus" class="status good" style="background:rgba(209,250,229,0.18);color:#e7fff2;border:1px solid rgba(255,255,255,0.14);">Waiting for data</div>
+            </div>
+            <div class="invoice-ribbon-grid">
+              <div class="invoice-ribbon-card">
+                <div class="label">Actual Rack Positions</div>
+                <div class="value" id="invoiceRibbonActual">0.00</div>
+                <div class="hint">60" positions used</div>
+              </div>
+              <div class="invoice-ribbon-card">
+                <div class="label">Billable Positions</div>
+                <div class="value" id="invoiceRibbonBillable">0.00</div>
+                <div class="hint">Benchmark-equivalent positions</div>
+              </div>
+              <div class="invoice-ribbon-card">
+                <div class="label">Monthly Storage</div>
+                <div class="value" id="invoiceRibbonTotal">$0.00</div>
+                <div class="hint">Estimated customer charge</div>
+              </div>
+              <div class="invoice-ribbon-card">
+                <div class="label">Rows Ready</div>
+                <div class="value" id="invoiceRibbonReady">0</div>
+                <div class="hint">Rows with billable calculations</div>
+              </div>
+            </div>
+            <div class="invoice-ribbon-actions">
+              <button type="button" class="button-light" id="invoiceRibbonOpenBtn">Open Full Invoice</button>
+              <button type="button" class="button-light" id="invoiceRibbonPreviewBtn">Open Pallet Preview</button>
+            </div>
+          </div>
+        </div>
+      </details>
 
-  <div class="tabs">
-    <button class="tab-btn" type="button" data-tab="data">Data Intake</button>
-    <button class="tab-btn active" type="button" data-tab="calc">Calculator</button>
-    <button class="tab-btn" type="button" data-tab="preview">Pallet Preview</button>
-    <button class="tab-btn" type="button" data-tab="invoice">Invoice Summary</button>
-  </div>
+      <details class="section-panel" data-section="workspaceAssumptions">
+        <summary>
+          <div>
+            <div class="small">Reference Notes</div>
+            <div class="section-title">Assumptions And Billing Logic</div>
+            <div class="section-copy">Collapse this by default and reopen it when you need to explain the math or operational assumptions.</div>
+          </div>
+        </summary>
+        <div class="section-body">
+          <div class="card note" style="margin:0;">
+            <strong>Assumptions:</strong>
+            The calculator checks carton fit against a 40 x 48 pallet with allowed overhang, chooses the best stacking orientation automatically, and estimates flat-case stacking only.
+            If a product must stay upright or cannot tolerate overhang, note that in the row and adjust the values before billing.
+          </div>
+        </div>
+      </details>
+    </aside>
+
+    <main class="workspace-main">
+      <div class="tabs">
+        <button class="tab-btn" type="button" data-tab="data">Data Intake</button>
+        <button class="tab-btn active" type="button" data-tab="calc">Calculator</button>
+        <button class="tab-btn" type="button" data-tab="preview">Pallet Preview</button>
+        <button class="tab-btn" type="button" data-tab="invoice">Invoice Summary</button>
+      </div>
+
+      <div class="workspace-panels">
 
   <div id="tab-data" class="tab-panel">
     <div class="summary">
@@ -864,17 +1151,15 @@
       </div>
     </div>
   </div>
-
-  <div class="card note">
-    <strong>Assumptions:</strong>
-    The calculator checks carton fit against a 40 x 48 pallet with allowed overhang, chooses the best stacking orientation automatically, and estimates flat-case stacking only.
-    If a product must stay upright or cannot tolerate overhang, note that in the row and adjust the values before billing.
+      </div>
+    </main>
   </div>
 </div>
 
 <script src="./xlsx.full.min.js"></script>
 <script>
 const STORAGE_KEY = 'palletPositionCalcV3';
+const UI_LAYOUT_KEY = 'palletPositionCalcUILayoutV1';
 const CM_TO_IN = 0.3937007874;
 const seedData = [
   { product: 'DERMACOTTON 60 PACK', sku: 'DC60', boxes: 532, lcm: 27.8, wcm: 21.8, hcm: 29.0, notes: '' },
@@ -911,6 +1196,35 @@ const state = {
   remoteChecked: false,
   remoteSyncTimer: null
 };
+
+function readUiLayoutState() {
+  try {
+    const raw = localStorage.getItem(UI_LAYOUT_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function writeUiLayoutState(nextState) {
+  localStorage.setItem(UI_LAYOUT_KEY, JSON.stringify(nextState));
+}
+
+function initSectionPanels() {
+  const saved = readUiLayoutState();
+  document.querySelectorAll('details[data-section]').forEach((panel) => {
+    const key = panel.dataset.section;
+    if (Object.prototype.hasOwnProperty.call(saved, key)) {
+      panel.open = Boolean(saved[key]);
+    }
+    panel.addEventListener('toggle', () => {
+      const next = readUiLayoutState();
+      next[key] = panel.open;
+      writeUiLayoutState(next);
+    });
+  });
+}
 
 function toNum(v) {
   const n = parseFloat(String(v ?? '').replace(/[^0-9.-]/g, ''));
@@ -2354,6 +2668,7 @@ document.getElementById('clearStockBtn').addEventListener('click', () => {
   setCalcSyncStatus('Stock rows were cleared. Calculator and invoice totals are reset until new stock is loaded.', 'warn');
   scheduleRemoteSave('stock clear');
 });
+initSectionPanels();
 ensureXlsxLibrary();
 resetToSeed();
 loadRemoteData({ quiet: true });
