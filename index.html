@@ -1022,11 +1022,11 @@ function addRow(row = {}, skipRecalc = false) {
     tr.appendChild(td);
   }
 
-  const notesTd = tr.children[19];
-  notesTd.innerHTML = '';
+  const notesTd = document.createElement('td');
   notesTd.appendChild(createInput(row.notes || '', 'notes'));
+  tr.appendChild(notesTd);
 
-  const deleteTd = tr.children[20];
+  const deleteTd = document.createElement('td');
   deleteTd.innerHTML = '<button type="button" class="danger">Delete</button>';
   deleteTd.querySelector('button').addEventListener('click', (event) => {
     event.stopPropagation();
@@ -1034,6 +1034,7 @@ function addRow(row = {}, skipRecalc = false) {
     recalc();
     scheduleRemoteSave('calculator delete');
   });
+  tr.appendChild(deleteTd);
 
   tr.addEventListener('click', (event) => {
     if (event.target.closest('input,button')) return;
