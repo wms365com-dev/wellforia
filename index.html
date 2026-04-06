@@ -1616,8 +1616,34 @@ function setRemoteStatus(text, tone) {
   el.textContent = text;
 }
 
+function isServerBackedContext() {
+  return window.location.protocol !== 'file:';
+}
+
+function setRemoteButtonsDisabled(disabled) {
+  ['toolbarSaveRailwayBtn', 'toolbarLoadRailwayBtn'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = disabled;
+  });
+}
+
 async function requestJson(url, options = {}) {
-  const response = await fetch(url, options);
+  const controller = new AbortController();
+  const timeoutMs = options.timeoutMs ?? 8000;
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+  const fetchOptions = { ...options, signal: controller.signal };
+  delete fetchOptions.timeoutMs;
+  let response;
+  try {
+    response = await fetch(url, fetchOptions);
+  } catch (error) {
+    if (error && error.name === 'AbortError') {
+      throw new Error('Request timed out. The app may not be running from Railway or the local server.');
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
   const payload = await response.json().catch(() => ({}));
   if (!response.ok || payload.ok === false) {
     throw new Error(payload && payload.message ? payload.message : `Request failed (${response.status})`);
@@ -1639,11 +1665,19 @@ function applyPersistedState(payload) {
 
 async function loadRemoteData(options = {}) {
   const quiet = Boolean(options.quiet);
+  if (!isServerBackedContext()) {
+    state.remoteChecked = true;
+    state.remoteEnabled = false;
+    setRemoteButtonsDisabled(true);
+    setRemoteStatus('Open this app from Railway or http://localhost:3000. Database features do not work from a raw HTML file.', 'warn');
+    return false;
+  }
   setRemoteStatus('Loading shared data from Railway...', 'warn');
   try {
     const payload = await requestJson('/api/state');
     state.remoteChecked = true;
     state.remoteEnabled = Boolean(payload.enabled);
+    setRemoteButtonsDisabled(false);
 
     if (!payload.enabled) {
       setRemoteStatus('Railway database is not connected yet. Add PostgreSQL and DATABASE_URL to enable shared saving.', 'warn');
@@ -1660,6 +1694,7 @@ async function loadRemoteData(options = {}) {
     return true;
   } catch (error) {
     state.remoteChecked = true;
+    state.remoteEnabled = false;
     setRemoteStatus(`Railway load failed: ${error && error.message ? error.message : 'unknown error'}`, 'bad');
     if (!quiet) alert('The Railway database data could not be loaded.');
     return false;
@@ -1668,6 +1703,13 @@ async function loadRemoteData(options = {}) {
 
 async function saveRemoteData(options = {}) {
   const quiet = Boolean(options.quiet);
+  if (!isServerBackedContext()) {
+    state.remoteChecked = true;
+    state.remoteEnabled = false;
+    setRemoteButtonsDisabled(true);
+    setRemoteStatus('Open this app from Railway or http://localhost:3000. Database features do not work from a raw HTML file.', 'warn');
+    return false;
+  }
   if (state.intakeDirty) {
     buildCalculatorRowsFromIntake({ openCalculator: false, silent: true });
   } else if (!state.computed.length) {
@@ -1683,10 +1725,12 @@ async function saveRemoteData(options = {}) {
     });
     state.remoteChecked = true;
     state.remoteEnabled = Boolean(payload.enabled);
+    setRemoteButtonsDisabled(false);
     setRemoteStatus(`Saved shared data to Railway${payload.updatedAt ? ` on ${new Date(payload.updatedAt).toLocaleString()}` : ''}.`, 'good');
     return true;
   } catch (error) {
     state.remoteChecked = true;
+    state.remoteEnabled = false;
     setRemoteStatus(`Railway save failed: ${error && error.message ? error.message : 'unknown error'}`, 'bad');
     if (!quiet) alert('The Railway database data could not be saved.');
     return false;
