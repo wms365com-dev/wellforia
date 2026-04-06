@@ -438,8 +438,14 @@
     border-radius: 8px;
     background: linear-gradient(180deg, #fbbf24, #f59e0b);
   }
+  .preview-box.rotated {
+    background: linear-gradient(180deg, #7dd3fc, #2563eb);
+  }
   .preview-box.overhang {
     background: linear-gradient(180deg, #fb7185, #ef4444);
+  }
+  .preview-box.rotated.overhang {
+    background: linear-gradient(180deg, #f97316, #dc2626);
   }
   .preview-box span {
     position: absolute;
@@ -1351,52 +1357,157 @@ function orientations([a, b, c]) {
   ];
 }
 
+function createLayoutBlock(x, y, cols, rows, boxL, boxW, rotated) {
+  return {
+    x,
+    y,
+    cols,
+    rows,
+    boxL,
+    boxW,
+    rotated: Boolean(rotated),
+    count: cols * rows
+  };
+}
+
+function summarizeLayoutBlocks(blocks) {
+  const validBlocks = blocks.filter((block) => block.count > 0);
+  if (!validBlocks.length) return 'No cartons fit on this layer';
+  return validBlocks
+    .map((block) => `${formatNum(block.cols, 0)} x ${formatNum(block.rows, 0)} ${block.rotated ? 'rotated' : 'straight'} grid`)
+    .join(' + ');
+}
+
+function expandLayoutBlocks(blocks) {
+  const placements = [];
+  blocks.filter((block) => block.count > 0).forEach((block) => {
+    for (let row = 0; row < block.rows; row += 1) {
+      for (let col = 0; col < block.cols; col += 1) {
+        placements.push({
+          x: block.x + (col * block.boxL),
+          y: block.y + (row * block.boxW),
+          boxL: block.boxL,
+          boxW: block.boxW,
+          rotated: block.rotated
+        });
+      }
+    }
+  });
+  return placements;
+}
+
+function buildLayerFit(baseL, baseW, high, blocks, settings, layoutMode) {
+  const validBlocks = blocks.filter((block) => block.count > 0);
+  const perLayer = validBlocks.reduce((sum, block) => sum + block.count, 0);
+  const usedL = validBlocks.length ? Math.max(...validBlocks.map((block) => block.x + (block.cols * block.boxL))) : 0;
+  const usedW = validBlocks.length ? Math.max(...validBlocks.map((block) => block.y + (block.rows * block.boxW))) : 0;
+  const usableHeight = Math.max(settings.rackHeight - settings.palletHeight, 0);
+  const layers = high > 0 ? Math.floor(usableHeight / high) : 0;
+  const casesPerPos = perLayer * layers;
+  const areaUtil = perLayer ? ((perLayer * baseL * baseW) / (settings.palletL * settings.palletW)) * 100 : 0;
+  const straightCount = validBlocks.filter((block) => !block.rotated).reduce((sum, block) => sum + block.count, 0);
+  const rotatedCount = validBlocks.filter((block) => block.rotated).reduce((sum, block) => sum + block.count, 0);
+  const mixedRotation = straightCount > 0 && rotatedCount > 0;
+  const orientation = mixedRotation
+    ? `Mixed ${formatNum(baseL)} x ${formatNum(baseW)} + ${formatNum(baseW)} x ${formatNum(baseL)} base, ${formatNum(high)} high`
+    : `${formatNum(validBlocks[0] ? validBlocks[0].boxL : baseL)} x ${formatNum(validBlocks[0] ? validBlocks[0].boxW : baseW)} base, ${formatNum(high)} high`;
+
+  return {
+    orientation,
+    baseL,
+    baseW,
+    high,
+    cols: validBlocks[0] ? validBlocks[0].cols : 0,
+    rows: validBlocks[0] ? validBlocks[0].rows : 0,
+    perLayer,
+    layers,
+    casesPerPos,
+    usedL,
+    usedW,
+    overhangL: Math.max(usedL - settings.palletL, 0),
+    overhangW: Math.max(usedW - settings.palletW, 0),
+    areaUtil,
+    fitsFootprint: perLayer > 0,
+    fitsInsidePallet: usedL <= settings.palletL && usedW <= settings.palletW,
+    blocks: validBlocks,
+    placements: expandLayoutBlocks(validBlocks),
+    straightCount,
+    rotatedCount,
+    mixedRotation,
+    layoutMode,
+    layoutSummary: summarizeLayoutBlocks(validBlocks)
+  };
+}
+
+function scoreFitCandidate(candidate) {
+  return (candidate.casesPerPos * 100000)
+    + (candidate.perLayer * 1000)
+    - ((candidate.overhangL + candidate.overhangW) * 10)
+    + candidate.areaUtil
+    + (candidate.mixedRotation ? 1 : 0);
+}
+
 function evaluateBestFit(lengthIn, widthIn, heightIn, settings) {
   const maxL = settings.palletL + (settings.overhang * 2);
   const maxW = settings.palletW + (settings.overhang * 2);
-  const usableHeight = Math.max(settings.rackHeight - settings.palletHeight, 0);
   const opts = orientations([lengthIn, widthIn, heightIn]);
   let best = null;
 
   for (const opt of opts) {
-    const colsA = Math.floor(maxL / opt.baseL);
-    const rowsA = Math.floor(maxW / opt.baseW);
-    const colsB = Math.floor(maxL / opt.baseW);
-    const rowsB = Math.floor(maxW / opt.baseL);
-    const perRowA = colsA * rowsA;
-    const perRowB = colsB * rowsB;
-    const useSwapped = perRowB > perRowA;
-    const perLayer = Math.max(perRowA, perRowB);
-    const baseL = useSwapped ? opt.baseW : opt.baseL;
-    const baseW = useSwapped ? opt.baseL : opt.baseW;
-    const cols = useSwapped ? colsB : colsA;
-    const rows = useSwapped ? rowsB : rowsA;
-    const layers = Math.floor(usableHeight / opt.high);
-    const casesPerPos = perLayer * layers;
-    const usedL = cols * baseL;
-    const usedW = rows * baseW;
-    const areaUtil = perLayer ? ((perLayer * baseL * baseW) / (settings.palletL * settings.palletW)) * 100 : 0;
-    const result = {
-      orientation: `${formatNum(baseL)} x ${formatNum(baseW)} base, ${formatNum(opt.high)} high`,
-      baseL,
-      baseW,
-      high: opt.high,
-      cols,
-      rows,
-      perLayer,
-      layers,
-      casesPerPos,
-      usedL,
-      usedW,
-      overhangL: Math.max(usedL - settings.palletL, 0),
-      overhangW: Math.max(usedW - settings.palletW, 0),
-      areaUtil,
-      fitsFootprint: perLayer > 0,
-      fitsInsidePallet: usedL <= settings.palletL && usedW <= settings.palletW
-    };
+    const candidates = [];
 
-    const score = (casesPerPos * 100000) + (perLayer * 1000) - ((result.overhangL + result.overhangW) * 10) + areaUtil;
-    if (!best || score > best.score) best = { ...result, score };
+    const uniform = buildLayerFit(
+      opt.baseL,
+      opt.baseW,
+      opt.high,
+      [createLayoutBlock(0, 0, Math.floor(maxL / opt.baseL), Math.floor(maxW / opt.baseW), opt.baseL, opt.baseW, false)],
+      settings,
+      'uniform'
+    );
+    candidates.push(uniform);
+
+    const maxPrimaryCols = Math.floor(maxL / opt.baseL);
+    const primaryRows = Math.floor(maxW / opt.baseW);
+    const rotatedRows = Math.floor(maxW / opt.baseL);
+    for (let primaryCols = 1; primaryCols < maxPrimaryCols; primaryCols += 1) {
+      const usedPrimaryL = primaryCols * opt.baseL;
+      const rotatedCols = Math.floor((maxL - usedPrimaryL) / opt.baseW);
+      candidates.push(buildLayerFit(
+        opt.baseL,
+        opt.baseW,
+        opt.high,
+        [
+          createLayoutBlock(0, 0, primaryCols, primaryRows, opt.baseL, opt.baseW, false),
+          createLayoutBlock(usedPrimaryL, 0, rotatedCols, rotatedRows, opt.baseW, opt.baseL, true)
+        ],
+        settings,
+        'split-length'
+      ));
+    }
+
+    const maxPrimaryRows = Math.floor(maxW / opt.baseW);
+    const primaryColsFull = Math.floor(maxL / opt.baseL);
+    const rotatedColsFull = Math.floor(maxL / opt.baseW);
+    for (let primaryRowCount = 1; primaryRowCount < maxPrimaryRows; primaryRowCount += 1) {
+      const usedPrimaryW = primaryRowCount * opt.baseW;
+      const rotatedRowCount = Math.floor((maxW - usedPrimaryW) / opt.baseL);
+      candidates.push(buildLayerFit(
+        opt.baseL,
+        opt.baseW,
+        opt.high,
+        [
+          createLayoutBlock(0, 0, primaryColsFull, primaryRowCount, opt.baseL, opt.baseW, false),
+          createLayoutBlock(0, usedPrimaryW, rotatedColsFull, rotatedRowCount, opt.baseW, opt.baseL, true)
+        ],
+        settings,
+        'split-width'
+      ));
+    }
+
+    candidates.forEach((candidate) => {
+      const score = scoreFitCandidate(candidate);
+      if (!best || score > best.score) best = { ...candidate, score };
+    });
   }
 
   return best;
@@ -1574,26 +1685,24 @@ function renderPreview() {
   board.appendChild(pallet);
 
   let counter = 1;
-  for (let r = 0; r < fit.rows; r += 1) {
-    for (let c = 0; c < fit.cols; c += 1) {
-      const x = startX + (c * fit.baseL);
-      const y = startY + (r * fit.baseW);
-      const overhang = x < settings.overhang || y < settings.overhang || (x + fit.baseL) > (settings.overhang + settings.palletL) || (y + fit.baseW) > (settings.overhang + settings.palletW);
-      const box = document.createElement('div');
-      box.className = `preview-box${overhang ? ' overhang' : ''}`;
-      box.style.left = `${4 + (x / zoneL) * 92}%`;
-      box.style.top = `${4 + (y / zoneW) * 92}%`;
-      box.style.width = `${(fit.baseL / zoneL) * 92}%`;
-      box.style.height = `${(fit.baseW / zoneW) * 92}%`;
-      if (fit.perLayer <= 16) box.innerHTML = `<span>${counter}</span>`;
-      counter += 1;
-      board.appendChild(box);
-    }
-  }
+  fit.placements.forEach((placement) => {
+    const x = startX + placement.x;
+    const y = startY + placement.y;
+    const overhang = x < settings.overhang || y < settings.overhang || (x + placement.boxL) > (settings.overhang + settings.palletL) || (y + placement.boxW) > (settings.overhang + settings.palletW);
+    const box = document.createElement('div');
+    box.className = `preview-box${placement.rotated ? ' rotated' : ''}${overhang ? ' overhang' : ''}`;
+    box.style.left = `${4 + (x / zoneL) * 92}%`;
+    box.style.top = `${4 + (y / zoneW) * 92}%`;
+    box.style.width = `${(placement.boxL / zoneL) * 92}%`;
+    box.style.height = `${(placement.boxW / zoneW) * 92}%`;
+    if (fit.perLayer <= 16) box.innerHTML = `<span>${counter}</span>`;
+    counter += 1;
+    board.appendChild(box);
+  });
 
   info.innerHTML = [
     infoBox('Boxes On Hand', formatNum(row.boxes, 0), 'Current inventory'),
-    infoBox('Cases Per Layer', formatNum(fit.perLayer, 0), `${fit.cols} columns x ${fit.rows} rows`),
+    infoBox('Cases Per Layer', formatNum(fit.perLayer, 0), fit.layoutSummary),
     infoBox('Layers At Rack Height', formatNum(fit.layers, 0), 'Usable stack height'),
     infoBox('Cases Per Position', formatNum(fit.casesPerPos, 0), '60-inch rack capacity'),
     infoBox('Actual Positions', formatNum(row.actual60, 2), 'Real rack positions used'),
@@ -1602,7 +1711,10 @@ function renderPreview() {
     infoBox('Overhang Used', `${formatNum(fit.overhangL)} x ${formatNum(fit.overhangW)}`, fit.fitsInsidePallet ? 'Fits inside pallet' : 'Uses allowed overhang')
   ].join('');
 
-  narrative.innerHTML = `${row.product || row.sku} stacks ${formatNum(fit.perLayer, 0)} cases per layer and ${formatNum(fit.layers, 0)} layers high inside your ${formatNum(settings.rackHeight, 0)}" rack, giving ${formatNum(fit.casesPerPos, 0)} cases per actual position. The layer uses ${formatNum(fit.areaUtil, 1)}% of the pallet footprint.`;
+  const rotationNote = fit.mixedRotation
+    ? ` The best layer mixes ${formatNum(fit.straightCount, 0)} straight cartons with ${formatNum(fit.rotatedCount, 0)} rotated cartons to maximize the pallet build.`
+    : '';
+  narrative.innerHTML = `${row.product || row.sku} stacks ${formatNum(fit.perLayer, 0)} cases per layer and ${formatNum(fit.layers, 0)} layers high inside your ${formatNum(settings.rackHeight, 0)}" rack, giving ${formatNum(fit.casesPerPos, 0)} cases per actual position. The layer uses ${formatNum(fit.areaUtil, 1)}% of the pallet footprint.${rotationNote}`;
 }
 
 function renderInvoice() {
