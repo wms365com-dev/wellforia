@@ -1,0 +1,12 @@
+{
+  "name": "wellforia",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Pallet position storage calculator for 60-inch rack to 72-inch billing conversion.",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

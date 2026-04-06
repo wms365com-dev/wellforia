@@ -1,0 +1,1199 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pallet Position Calculator v3 - 60in Rack to 72in Billing</title>
+<style>
+  :root {
+    --bg: #f4f7fb;
+    --card: #ffffff;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --line: #d9e2ec;
+    --good: #e8f7ee;
+    --warn: #fff7e6;
+    --bad: #fdecec;
+    --accent: #1d4ed8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .wrap {
+    max-width: 1700px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  h1 {
+    margin: 0 0 8px;
+    font-size: 28px;
+  }
+  .sub {
+    color: var(--muted);
+    margin-bottom: 18px;
+    line-height: 1.4;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  .field label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    font-weight: bold;
+  }
+  .field.wide {
+    grid-column: span 2;
+  }
+  .field input, .field select, .field textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #c8d3df;
+    border-radius: 8px;
+    font-size: 14px;
+    background: #fff;
+  }
+  .toolbar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 12px 0 16px;
+  }
+  button {
+    border: 0;
+    border-radius: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    font-weight: bold;
+    background: #e5e7eb;
+    color: #111827;
+  }
+  button.primary { background: var(--accent); color: #fff; }
+  button.warn { background: #f59e0b; color: #fff; }
+  button.danger { background: #dc2626; color: #fff; }
+  button.ghost { background: #dbeafe; color: #1e3a8a; }
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .tab-btn {
+    background: #e2e8f0;
+    color: var(--muted);
+  }
+  .tab-btn.active {
+    background: var(--accent);
+    color: #fff;
+  }
+  .tab-panel {
+    display: none;
+  }
+  .tab-panel.active {
+    display: block;
+  }
+  .metric .label {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .metric .value {
+    font-size: 26px;
+    font-weight: 700;
+  }
+  .table-wrap {
+    overflow: auto;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 2000px;
+  }
+  th, td {
+    border-bottom: 1px solid var(--line);
+    padding: 8px;
+    text-align: left;
+    vertical-align: top;
+    font-size: 13px;
+  }
+  th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #eef4ff;
+    white-space: nowrap;
+  }
+  td input {
+    width: 100%;
+    min-width: 80px;
+    padding: 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  tr.good { background: #fbfefc; }
+  tr.warn { background: var(--warn); }
+  tr.bad { background: var(--bad); }
+  tr.selected {
+    outline: 2px solid #1d4ed8;
+    outline-offset: -2px;
+  }
+  .tag {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: bold;
+    white-space: nowrap;
+  }
+  .tag.good { background: #d1fae5; color: #065f46; }
+  .tag.warn { background: #fef3c7; color: #92400e; }
+  .tag.bad { background: #fee2e2; color: #991b1b; }
+  .note {
+    margin-top: 14px;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.45;
+  }
+  .formula {
+    font-family: "Courier New", monospace;
+    background: #f8fafc;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px;
+    margin-top: 12px;
+    overflow: auto;
+  }
+  .small { font-size: 12px; color: var(--muted); }
+  .right { text-align: right; }
+  .upload-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  .status {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: bold;
+  }
+  .status.good { background: #d1fae5; color: #065f46; }
+  .status.warn { background: #fef3c7; color: #92400e; }
+  .status.bad { background: #fee2e2; color: #991b1b; }
+  .layout-two {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+    gap: 16px;
+  }
+  .preview-stage {
+    min-height: 420px;
+    display: grid;
+    place-items: center;
+    background:
+      linear-gradient(180deg, rgba(238,244,255,0.9), rgba(255,255,255,0.95)),
+      repeating-linear-gradient(90deg, rgba(29,78,216,0.05), rgba(29,78,216,0.05) 1px, transparent 1px, transparent 36px),
+      repeating-linear-gradient(0deg, rgba(29,78,216,0.05), rgba(29,78,216,0.05) 1px, transparent 1px, transparent 36px);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .preview-board {
+    position: relative;
+    width: min(100%, 640px);
+    border: 1px solid #cbd5e1;
+    border-radius: 18px;
+    background: linear-gradient(180deg, #fff, #f8fafc);
+    overflow: hidden;
+  }
+  .preview-board.empty {
+    min-height: 240px;
+    display: grid;
+    place-items: center;
+    color: var(--muted);
+    text-align: center;
+    padding: 24px;
+  }
+  .preview-zone,
+  .preview-pallet,
+  .preview-box {
+    position: absolute;
+  }
+  .preview-zone {
+    border: 2px dashed #ef4444;
+    background: rgba(239, 68, 68, 0.05);
+    border-radius: 14px;
+  }
+  .preview-pallet {
+    border: 3px solid #1d4ed8;
+    background: rgba(29, 78, 216, 0.12);
+    border-radius: 12px;
+  }
+  .preview-box {
+    border: 1px solid rgba(15, 23, 42, 0.15);
+    border-radius: 8px;
+    background: linear-gradient(180deg, #fbbf24, #f59e0b);
+  }
+  .preview-box.overhang {
+    background: linear-gradient(180deg, #fb7185, #ef4444);
+  }
+  .preview-box span {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-size: 10px;
+    font-weight: bold;
+    color: rgba(15, 23, 42, 0.7);
+  }
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+  }
+  .info-box {
+    background: #f8fafc;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px;
+  }
+  .info-box .label {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+  }
+  .info-box .value {
+    font-size: 20px;
+    font-weight: 700;
+  }
+  .legend {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .legend-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 4px;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .invoice-box {
+    margin-bottom: 16px;
+  }
+  .invoice-table {
+    width: 100%;
+    min-width: 900px;
+  }
+  .empty {
+    color: var(--muted);
+    text-align: center;
+    padding: 24px;
+  }
+  @media (max-width: 1000px) {
+    .grid, .summary, .info-grid { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
+    .layout-two { grid-template-columns: 1fr; }
+    h1 { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Pallet Position Calculator</h1>
+  <div class="sub">
+    Use this to calculate how many <strong>actual 60&quot; rack positions</strong> you use, then convert them into <strong>72&quot; billable pallet positions</strong> at <strong>$15 each</strong> using <strong>Option B</strong>.<br>
+    The tool also audits whether each carton can fit on a <strong>40 x 48 pallet</strong> with optional overhang, includes a pallet preview, and builds an invoice summary.
+  </div>
+
+  <div class="grid">
+    <div class="card field"><label>Customer Name</label><input id="customerName" type="text" value="Customer Storage Estimate"></div>
+    <div class="card field"><label>Report Label</label><input id="reportLabel" type="text" value="Monthly Storage Review"></div>
+    <div class="card field"><label>Pallet Length (in)</label><input id="palletL" type="number" step="0.01" value="48"></div>
+    <div class="card field"><label>Pallet Width (in)</label><input id="palletW" type="number" step="0.01" value="40"></div>
+    <div class="card field"><label>Allowed Overhang per Side (in)</label><input id="overhang" type="number" step="0.01" value="1"></div>
+    <div class="card field"><label>Pallet Height (in)</label><input id="palletHeight" type="number" step="0.01" value="5.5"></div>
+    <div class="card field"><label>Rack Height Limit (in)</label><input id="rackHeight" type="number" step="0.01" value="60"></div>
+    <div class="card field"><label>Billable Height Benchmark (in)</label><input id="billHeight" type="number" step="0.01" value="72"></div>
+    <div class="card field"><label>Customer Billing Rate per 72&quot; Position ($)</label><input id="rate72" type="number" step="0.01" value="15"></div>
+    <div class="card field wide">
+      <label>Excel Upload</label>
+      <div class="small">Import the customer worksheet directly. Expected columns: <strong>PRODUCT</strong>, <strong>SKU</strong>, <strong>Dimensions (cm)</strong>, and <strong>Boxes is Stock</strong>.</div>
+      <div class="upload-row">
+        <button type="button" class="primary" id="uploadBtn">Upload Excel / CSV</button>
+        <button type="button" class="ghost" id="reloadImportBtn">Reload Import Helper</button>
+        <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" style="display:none">
+      </div>
+      <div id="importStatus" class="status warn" style="margin-top:10px;">Loading Excel import helper...</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="primary" onclick="addRow()">Add SKU Row</button>
+    <button onclick="recalc()">Recalculate</button>
+    <button onclick="saveData()">Save Local</button>
+    <button onclick="loadData()">Load Local</button>
+    <button onclick="exportCSV()">Export CSV</button>
+    <button class="warn" onclick="resetToSeed()">Reload Uploaded SKU Data</button>
+    <button class="danger" onclick="clearAllRows()">Clear Rows</button>
+    <button class="ghost" onclick="printInvoice()">Print Invoice Summary</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" type="button" data-tab="calc">Calculator</button>
+    <button class="tab-btn" type="button" data-tab="preview">Pallet Preview</button>
+    <button class="tab-btn" type="button" data-tab="invoice">Invoice Summary</button>
+  </div>
+
+  <div id="tab-calc" class="tab-panel active">
+  <div class="summary">
+    <div class="card metric"><div class="label">Total SKUs</div><div class="value" id="sumSkus">0</div></div>
+    <div class="card metric"><div class="label">Total Boxes</div><div class="value" id="sumBoxes">0</div></div>
+    <div class="card metric"><div class="label">Actual 60&quot; Positions</div><div class="value" id="sumActual60">0</div></div>
+    <div class="card metric"><div class="label">72&quot; Billable Positions</div><div class="value" id="sumBill72">0</div></div>
+    <div class="card metric"><div class="label">Monthly Storage</div><div class="value" id="sumRevenue">$0.00</div></div>
+    <div class="card metric"><div class="label">Avg Utilization</div><div class="value" id="sumUtil">0%</div></div>
+  </div>
+
+  <div class="table-wrap">
+    <table id="skuTable">
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>SKU</th>
+          <th>Boxes</th>
+          <th>L (cm)</th>
+          <th>W (cm)</th>
+          <th>H (cm)</th>
+          <th>L (in)</th>
+          <th>W (in)</th>
+          <th>H (in)</th>
+          <th>Best Orientation</th>
+          <th>Footprint Used (in)</th>
+          <th>Fit Audit</th>
+          <th>Cases / Layer</th>
+          <th>Layers @ Rack Height</th>
+          <th>Cases / Position</th>
+          <th>Actual 60&quot; Positions</th>
+          <th>72&quot; Billable Positions</th>
+          <th>Monthly Charge</th>
+          <th>Pallet Area Util.</th>
+          <th>Notes</th>
+          <th>Delete</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="card note">
+    <strong>How Option B is calculated:</strong>
+    <div class="formula">
+      Cases per Position = Cases per Layer x Layers that fit within (Rack Height - Pallet Height)<br>
+      Actual 60" Positions = Boxes / Cases per Position<br>
+      72" Billable Positions = Actual 60" Positions x (Rack Height / Billable Height)<br>
+      Monthly Charge = 72" Billable Positions x Customer Rate
+    </div>
+    <div class="small" style="margin-top:10px;">
+      This is an estimate tool. It assumes regular stacking and that the best carton orientation shown is operationally acceptable. If a carton is crush-sensitive, label-sensitive, or must stay upright, update the row note and override the dimensions manually if needed.
+    </div>
+  </div>
+</div>
+
+  <div id="tab-preview" class="tab-panel">
+    <div class="layout-two">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+          <div>
+            <div class="small">Selected SKU</div>
+            <select id="previewPicker"></select>
+          </div>
+          <div id="previewAudit" class="status warn">No SKU selected</div>
+        </div>
+        <div class="preview-stage">
+          <div id="previewBoard" class="preview-board empty">Select a SKU row from the calculator table to see the pallet layout.</div>
+        </div>
+        <div class="legend">
+          <span><span class="legend-dot" style="background:#f59e0b;"></span>Cases in the layer</span>
+          <span><span class="legend-dot" style="background:#ef4444;"></span>Case extends beyond the 40 x 48 pallet</span>
+          <span><span class="legend-dot" style="background:#1d4ed8;"></span>Actual pallet footprint</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="font-size:22px;font-weight:700;" id="previewTitle">Pallet Preview</div>
+        <div class="small" id="previewSubtitle">Orientation and stack details will appear here.</div>
+        <div class="info-grid" id="previewInfo"></div>
+        <div class="card note" id="previewNarrative" style="margin-top:16px;">Choose a SKU to build the pallet visualization.</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-invoice" class="tab-panel">
+    <div class="layout-two">
+      <div>
+        <div class="card invoice-box">
+          <div class="small">Invoice Summary</div>
+          <div style="font-size:26px;font-weight:700;margin-top:4px;" id="invoiceCustomer">Customer Storage Estimate</div>
+          <div class="small" id="invoiceLabel" style="margin-top:4px;">Monthly Storage Review</div>
+          <div class="info-grid">
+            <div class="info-box"><div class="label">Actual Rack Positions</div><div class="value" id="invoiceActual">0</div></div>
+            <div class="info-box"><div class="label">Billable Positions</div><div class="value" id="invoiceBillable">0</div></div>
+            <div class="info-box"><div class="label">Rate / 72&quot; Position</div><div class="value" id="invoiceRate">$0.00</div></div>
+            <div class="info-box"><div class="label">Monthly Charge</div><div class="value" id="invoiceTotal">$0.00</div></div>
+          </div>
+        </div>
+        <div class="card note">
+          <strong>Customer-facing wording:</strong>
+          <div id="invoiceNarrative" style="margin-top:8px;">The invoice summary will update after the table is calculated.</div>
+          <div class="formula" id="invoiceFormula"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+          <div>
+            <div class="small">SKU Rollup</div>
+            <div style="font-size:20px;font-weight:700;">Top Monthly Charge Drivers</div>
+          </div>
+          <button type="button" class="ghost" onclick="openTab('preview')">View Selected SKU Preview</button>
+        </div>
+        <div class="table-wrap">
+          <table class="invoice-table" id="invoiceTable">
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Product</th>
+                <th>Boxes</th>
+                <th>Cases / Position</th>
+                <th>Actual Positions</th>
+                <th>Billable Positions</th>
+                <th>Monthly Charge</th>
+                <th>Fit Audit</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card note">
+    <strong>Assumptions:</strong>
+    The calculator checks carton fit against a 40 x 48 pallet with allowed overhang, chooses the best stacking orientation automatically, and estimates flat-case stacking only.
+    If a product must stay upright or cannot tolerate overhang, note that in the row and adjust the values before billing.
+  </div>
+</div>
+
+<script src="./xlsx.full.min.js"></script>
+<script>
+const STORAGE_KEY = 'palletPositionCalcV3';
+const CM_TO_IN = 0.3937007874;
+const seedData = [
+  { product: 'DERMACOTTON 60 PACK', sku: 'DC60', boxes: 532, lcm: 27.8, wcm: 21.8, hcm: 29.0, notes: '' },
+  { product: 'PEEKAPOO LINERS 50 PACK', sku: 'PKP50', boxes: 375, lcm: 48.0, wcm: 36.5, hcm: 41.5, notes: '' },
+  { product: 'PEEKAPOO LINERS 100 PACK', sku: 'PKP100', boxes: 483, lcm: 43.0, wcm: 38.0, hcm: 35.5, notes: '' },
+  { product: 'PEEKAPOO XL LINERS 50 PACK', sku: 'PKPXL-50-UPC', boxes: 230, lcm: 48.0, wcm: 31.0, hcm: 52.0, notes: '' },
+  { product: 'PEEKAPOO TISSUES 6 PACK', sku: 'PKTS6PK', boxes: 192, lcm: 50.0, wcm: 43.0, hcm: 33.0, notes: '' },
+  { product: 'WHOOPSIE WIPES 12 PACK', sku: 'WW-12PK', boxes: 0, lcm: 58.0, wcm: 43.5, hcm: 33.0, notes: '' },
+  { product: 'WHOOPSIE WIPES 6 PACK', sku: 'TP-WW-6PK-UPC', boxes: 824, lcm: 53.0, wcm: 43.0, hcm: 33.0, notes: '' },
+  { product: 'PEEKAPOO BABY LINERS 30 PACK', sku: 'PKP30', boxes: 208, lcm: 43.0, wcm: 31.5, hcm: 34.0, notes: '' },
+  { product: 'PEEKAPOO BABY LINERS 50 PACK', sku: 'PKP50-BABY', boxes: 140, lcm: 47.0, wcm: 36.0, hcm: 41.5, notes: '' },
+  { product: 'PEEKAPOO DOG LINERS 30 PACK', sku: 'PKP30-DOG', boxes: 55, lcm: 43.0, wcm: 31.5, hcm: 34.0, notes: '' },
+  { product: 'PEEKAPOO DOG LINERS 50 PACK', sku: 'PKP50-DOG', boxes: 77, lcm: 48.0, wcm: 36.5, hcm: 41.5, notes: '' },
+  { product: 'PEEKAPOO PUPPY PADS S', sku: 'PPS', boxes: 29, lcm: 43.0, wcm: 36.5, hcm: 22.5, notes: '' },
+  { product: 'PEEKAPOO PUPPY PADS M', sku: 'PPM', boxes: 37, lcm: 45.0, wcm: 39.0, hcm: 22.5, notes: '' },
+  { product: 'PEEKAPOO PUPPY PADS L', sku: 'PPL', boxes: 72, lcm: 47.0, wcm: 40.0, hcm: 24.0, notes: '' },
+  { product: 'PEEKAPOO PUPPY PADS XL', sku: 'PPXL', boxes: 31, lcm: 52.0, wcm: 40.0, hcm: 24.0, notes: '' },
+  { product: 'PEEKAPOO PUPPY PADS XXL', sku: 'PPXXL', boxes: 19, lcm: 58.0, wcm: 40.0, hcm: 24.0, notes: '' },
+  { product: 'PEEKAPOO LINERS 20 PACK', sku: 'PKP20', boxes: 112, lcm: 40.0, wcm: 30.0, hcm: 34.0, notes: '' },
+  { product: 'WHOOPSIE TISSUE 6 PACK', sku: 'WT6', boxes: 48, lcm: 50.0, wcm: 43.0, hcm: 33.0, notes: '' },
+  { product: 'WHOOPSIE TISSUE 12 PACK', sku: 'WT12', boxes: 30, lcm: 58.0, wcm: 43.5, hcm: 33.0, notes: '' },
+  { product: 'MIXED / MANUAL ENTRY', sku: 'MANUAL', boxes: 0, lcm: 0, wcm: 0, hcm: 0, notes: 'Use this row for new SKUs.' }
+];
+const state = { computed: [], selectedIndex: 0, xlsxReady: typeof XLSX !== 'undefined', xlsxPromise: null };
+
+function toNum(v) {
+  const n = parseFloat(String(v ?? '').replace(/[^0-9.-]/g, ''));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function formatNum(v, digits = 2) {
+  if (!Number.isFinite(v)) return '';
+  return Number(v).toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
+function formatMoney(v) {
+  return '$' + formatNum(v, 2);
+}
+
+function csvEsc(v) {
+  return '"' + String(v ?? '').replace(/"/g, '""') + '"';
+}
+
+function getSettings() {
+  return {
+    customerName: document.getElementById('customerName').value.trim() || 'Customer Storage Estimate',
+    reportLabel: document.getElementById('reportLabel').value.trim() || 'Monthly Storage Review',
+    palletL: toNum(document.getElementById('palletL').value) || 48,
+    palletW: toNum(document.getElementById('palletW').value) || 40,
+    overhang: toNum(document.getElementById('overhang').value),
+    palletHeight: toNum(document.getElementById('palletHeight').value) || 5.5,
+    rackHeight: toNum(document.getElementById('rackHeight').value) || 60,
+    billHeight: toNum(document.getElementById('billHeight').value) || 72,
+    rate72: toNum(document.getElementById('rate72').value) || 15
+  };
+}
+
+function setSettings(s = {}) {
+  document.getElementById('customerName').value = s.customerName ?? 'Customer Storage Estimate';
+  document.getElementById('reportLabel').value = s.reportLabel ?? 'Monthly Storage Review';
+  document.getElementById('palletL').value = s.palletL ?? 48;
+  document.getElementById('palletW').value = s.palletW ?? 40;
+  document.getElementById('overhang').value = s.overhang ?? 1;
+  document.getElementById('palletHeight').value = s.palletHeight ?? 5.5;
+  document.getElementById('rackHeight').value = s.rackHeight ?? 60;
+  document.getElementById('billHeight').value = s.billHeight ?? 72;
+  document.getElementById('rate72').value = s.rate72 ?? 15;
+}
+
+function createInput(value, cls, type = 'text', step = 'any') {
+  const input = document.createElement('input');
+  input.value = value ?? '';
+  input.className = cls;
+  input.type = type;
+  if (type === 'number') input.step = step;
+  input.addEventListener('input', recalc);
+  return input;
+}
+
+function addRow(row = {}, skipRecalc = false) {
+  const tbody = document.querySelector('#skuTable tbody');
+  const tr = document.createElement('tr');
+  const fields = [
+    createInput(row.product || '', 'product'),
+    createInput(row.sku || '', 'sku'),
+    createInput(row.boxes ?? 0, 'boxes', 'number', '1'),
+    createInput(row.lcm ?? 0, 'lcm', 'number', '0.01'),
+    createInput(row.wcm ?? 0, 'wcm', 'number', '0.01'),
+    createInput(row.hcm ?? 0, 'hcm', 'number', '0.01')
+  ];
+
+  fields.forEach((input) => {
+    const td = document.createElement('td');
+    td.appendChild(input);
+    tr.appendChild(td);
+  });
+
+  for (let i = 0; i < 13; i += 1) {
+    const td = document.createElement('td');
+    td.className = 'calc';
+    tr.appendChild(td);
+  }
+
+  const notesTd = tr.children[19];
+  notesTd.innerHTML = '';
+  notesTd.appendChild(createInput(row.notes || '', 'notes'));
+
+  const deleteTd = tr.children[20];
+  deleteTd.innerHTML = '<button type="button" class="danger">Delete</button>';
+  deleteTd.querySelector('button').addEventListener('click', (event) => {
+    event.stopPropagation();
+    tr.remove();
+    recalc();
+  });
+
+  tr.addEventListener('click', (event) => {
+    if (event.target.closest('input,button')) return;
+    selectRow(Array.from(tbody.children).indexOf(tr));
+  });
+
+  tbody.appendChild(tr);
+  if (!skipRecalc) recalc();
+}
+
+function getRowInputs(tr) {
+  return {
+    product: tr.querySelector('.product').value.trim(),
+    sku: tr.querySelector('.sku').value.trim(),
+    boxes: toNum(tr.querySelector('.boxes').value),
+    lcm: toNum(tr.querySelector('.lcm').value),
+    wcm: toNum(tr.querySelector('.wcm').value),
+    hcm: toNum(tr.querySelector('.hcm').value),
+    notes: tr.querySelector('.notes').value.trim()
+  };
+}
+
+function orientations([a, b, c]) {
+  return [
+    { baseL: a, baseW: b, high: c },
+    { baseL: b, baseW: a, high: c },
+    { baseL: a, baseW: c, high: b },
+    { baseL: c, baseW: a, high: b },
+    { baseL: b, baseW: c, high: a },
+    { baseL: c, baseW: b, high: a }
+  ];
+}
+
+function evaluateBestFit(lengthIn, widthIn, heightIn, settings) {
+  const maxL = settings.palletL + (settings.overhang * 2);
+  const maxW = settings.palletW + (settings.overhang * 2);
+  const usableHeight = Math.max(settings.rackHeight - settings.palletHeight, 0);
+  const opts = orientations([lengthIn, widthIn, heightIn]);
+  let best = null;
+
+  for (const opt of opts) {
+    const colsA = Math.floor(maxL / opt.baseL);
+    const rowsA = Math.floor(maxW / opt.baseW);
+    const colsB = Math.floor(maxL / opt.baseW);
+    const rowsB = Math.floor(maxW / opt.baseL);
+    const perRowA = colsA * rowsA;
+    const perRowB = colsB * rowsB;
+    const useSwapped = perRowB > perRowA;
+    const perLayer = Math.max(perRowA, perRowB);
+    const baseL = useSwapped ? opt.baseW : opt.baseL;
+    const baseW = useSwapped ? opt.baseL : opt.baseW;
+    const cols = useSwapped ? colsB : colsA;
+    const rows = useSwapped ? rowsB : rowsA;
+    const layers = Math.floor(usableHeight / opt.high);
+    const casesPerPos = perLayer * layers;
+    const usedL = cols * baseL;
+    const usedW = rows * baseW;
+    const areaUtil = perLayer ? ((perLayer * baseL * baseW) / (settings.palletL * settings.palletW)) * 100 : 0;
+    const result = {
+      orientation: `${formatNum(baseL)} x ${formatNum(baseW)} base, ${formatNum(opt.high)} high`,
+      baseL,
+      baseW,
+      high: opt.high,
+      cols,
+      rows,
+      perLayer,
+      layers,
+      casesPerPos,
+      usedL,
+      usedW,
+      overhangL: Math.max(usedL - settings.palletL, 0),
+      overhangW: Math.max(usedW - settings.palletW, 0),
+      areaUtil,
+      fitsFootprint: perLayer > 0,
+      fitsInsidePallet: usedL <= settings.palletL && usedW <= settings.palletW
+    };
+
+    const score = (casesPerPos * 100000) + (perLayer * 1000) - ((result.overhangL + result.overhangW) * 10) + areaUtil;
+    if (!best || score > best.score) best = { ...result, score };
+  }
+
+  return best;
+}
+
+function setCell(tr, idx, html) {
+  tr.children[idx].innerHTML = html;
+}
+
+function infoBox(label, value, hint = '') {
+  return `<div class="info-box"><div class="label">${label}</div><div class="value">${value}</div><div class="small">${hint}</div></div>`;
+}
+
+function recalc() {
+  const settings = getSettings();
+  const rows = Array.from(document.querySelectorAll('#skuTable tbody tr'));
+  let totalSkus = 0;
+  let totalBoxes = 0;
+  let totalActual60 = 0;
+  let totalBill72 = 0;
+  let totalRevenue = 0;
+  let utilSum = 0;
+  let utilCount = 0;
+  state.computed = [];
+
+  rows.forEach((tr, index) => {
+    const row = getRowInputs(tr);
+    const lIn = row.lcm * CM_TO_IN;
+    const wIn = row.wcm * CM_TO_IN;
+    const hIn = row.hcm * CM_TO_IN;
+    setCell(tr, 6, row.lcm ? formatNum(lIn) : '');
+    setCell(tr, 7, row.wcm ? formatNum(wIn) : '');
+    setCell(tr, 8, row.hcm ? formatNum(hIn) : '');
+
+    const fit = lIn > 0 && wIn > 0 && hIn > 0 ? evaluateBestFit(lIn, wIn, hIn, settings) : null;
+    let actual60 = 0;
+    let bill72 = 0;
+    let charge = 0;
+    let auditClass = 'bad';
+    let auditText = 'Missing dimensions';
+
+    if (fit && fit.fitsFootprint && fit.layers > 0) {
+      actual60 = fit.casesPerPos ? row.boxes / fit.casesPerPos : 0;
+      bill72 = settings.billHeight ? actual60 * (settings.rackHeight / settings.billHeight) : 0;
+      charge = bill72 * settings.rate72;
+      auditClass = fit.fitsInsidePallet ? (fit.areaUtil < 55 ? 'warn' : 'good') : 'warn';
+      auditText = fit.fitsInsidePallet ? (fit.areaUtil < 55 ? 'Fits but low utilization' : 'Fits') : 'Fits with overhang';
+      tr.className = auditClass;
+      setCell(tr, 9, fit.orientation);
+      setCell(tr, 10, `${formatNum(fit.usedL)} x ${formatNum(fit.usedW)}`);
+      setCell(tr, 11, `<span class="tag ${auditClass}">${auditText}</span>`);
+      setCell(tr, 12, formatNum(fit.perLayer, 0));
+      setCell(tr, 13, formatNum(fit.layers, 0));
+      setCell(tr, 14, formatNum(fit.casesPerPos, 0));
+      setCell(tr, 15, formatNum(actual60, 2));
+      setCell(tr, 16, formatNum(bill72, 2));
+      setCell(tr, 17, formatMoney(charge));
+      setCell(tr, 18, `${formatNum(fit.areaUtil, 1)}%`);
+      utilSum += fit.areaUtil;
+      utilCount += 1;
+    } else {
+      tr.className = 'bad';
+      setCell(tr, 9, fit ? fit.orientation : '');
+      setCell(tr, 10, fit ? `${formatNum(fit.usedL)} x ${formatNum(fit.usedW)}` : '');
+      setCell(tr, 11, '<span class="tag bad">Does not fit / review needed</span>');
+      [12, 13, 14, 15, 16].forEach((cellIndex) => setCell(tr, cellIndex, '0'));
+      setCell(tr, 17, '$0.00');
+      setCell(tr, 18, '0%');
+      auditText = 'Does not fit / review needed';
+    }
+
+    totalSkus += row.sku || row.product ? 1 : 0;
+    totalBoxes += row.boxes;
+    totalActual60 += actual60;
+    totalBill72 += bill72;
+    totalRevenue += charge;
+    state.computed.push({ ...row, lIn, wIn, hIn, fit, actual60, bill72, charge, auditClass, auditText, index });
+  });
+
+  if (state.selectedIndex >= state.computed.length) state.selectedIndex = 0;
+  document.getElementById('sumSkus').textContent = formatNum(totalSkus, 0);
+  document.getElementById('sumBoxes').textContent = formatNum(totalBoxes, 0);
+  document.getElementById('sumActual60').textContent = formatNum(totalActual60, 2);
+  document.getElementById('sumBill72').textContent = formatNum(totalBill72, 2);
+  document.getElementById('sumRevenue').textContent = formatMoney(totalRevenue);
+  document.getElementById('sumUtil').textContent = utilCount ? `${formatNum(utilSum / utilCount, 1)}%` : '0%';
+  const calcFormula = document.querySelector('#tab-calc .formula');
+  if (calcFormula) calcFormula.innerHTML = `Cases per Position = Cases per Layer x Layers that fit within (Rack Height - Pallet Height)<br>Actual 60" Positions = Boxes / Cases per Position<br>72" Billable Positions = Actual 60" Positions x (${formatNum(settings.rackHeight, 0)} / ${formatNum(settings.billHeight, 0)})<br>Monthly Charge = 72" Billable Positions x ${formatMoney(settings.rate72)}`;
+  updateSelection();
+  renderPreview();
+  renderInvoice();
+}
+
+function updateSelection() {
+  Array.from(document.querySelectorAll('#skuTable tbody tr')).forEach((tr, index) => {
+    tr.classList.toggle('selected', index === state.selectedIndex);
+  });
+  const picker = document.getElementById('previewPicker');
+  picker.innerHTML = '';
+  state.computed.forEach((row, index) => {
+    const option = document.createElement('option');
+    option.value = index;
+    option.textContent = `${row.sku || 'NO-SKU'} - ${row.product || 'Manual Entry'}`;
+    picker.appendChild(option);
+  });
+  if (state.computed.length) picker.value = String(state.selectedIndex);
+}
+
+function selectRow(index, goPreview = false) {
+  state.selectedIndex = Math.max(0, Math.min(index, state.computed.length - 1));
+  updateSelection();
+  renderPreview();
+  if (goPreview) openTab('preview');
+}
+
+function renderPreview() {
+  const row = state.computed[state.selectedIndex];
+  const settings = getSettings();
+  const board = document.getElementById('previewBoard');
+  const audit = document.getElementById('previewAudit');
+  const title = document.getElementById('previewTitle');
+  const subtitle = document.getElementById('previewSubtitle');
+  const info = document.getElementById('previewInfo');
+  const narrative = document.getElementById('previewNarrative');
+
+  if (!row) {
+    board.className = 'preview-board empty';
+    board.innerHTML = 'Select a SKU row from the calculator table to see the pallet layout.';
+    audit.className = 'status warn';
+    audit.textContent = 'No SKU selected';
+    title.textContent = 'Pallet Preview';
+    subtitle.textContent = 'Orientation and stack details will appear here.';
+    info.innerHTML = '';
+    narrative.textContent = 'Choose a SKU to build the pallet visualization.';
+    return;
+  }
+
+  audit.className = `status ${row.auditClass}`;
+  audit.textContent = row.auditText;
+  title.textContent = row.sku || 'Manual SKU';
+  subtitle.textContent = row.product || 'Manual entry';
+
+  if (!row.fit || !row.fit.casesPerPos) {
+    board.className = 'preview-board empty';
+    board.innerHTML = 'This SKU needs review before a pallet layout can be drawn.';
+    info.innerHTML = '';
+    narrative.textContent = 'The carton is missing usable dimensions or does not fit the current pallet settings.';
+    return;
+  }
+
+  const fit = row.fit;
+  const zoneL = settings.palletL + (settings.overhang * 2);
+  const zoneW = settings.palletW + (settings.overhang * 2);
+  const startX = fit.fitsInsidePallet ? settings.overhang + ((settings.palletL - fit.usedL) / 2) : (zoneL - fit.usedL) / 2;
+  const startY = fit.fitsInsidePallet ? settings.overhang + ((settings.palletW - fit.usedW) / 2) : (zoneW - fit.usedW) / 2;
+
+  board.className = 'preview-board';
+  board.style.aspectRatio = `${zoneL} / ${zoneW}`;
+  board.innerHTML = '';
+
+  const zone = document.createElement('div');
+  zone.className = 'preview-zone';
+  zone.style.left = '4%';
+  zone.style.top = '4%';
+  zone.style.width = '92%';
+  zone.style.height = '92%';
+  board.appendChild(zone);
+
+  const pallet = document.createElement('div');
+  pallet.className = 'preview-pallet';
+  pallet.style.left = `${4 + (settings.overhang / zoneL) * 92}%`;
+  pallet.style.top = `${4 + (settings.overhang / zoneW) * 92}%`;
+  pallet.style.width = `${(settings.palletL / zoneL) * 92}%`;
+  pallet.style.height = `${(settings.palletW / zoneW) * 92}%`;
+  board.appendChild(pallet);
+
+  let counter = 1;
+  for (let r = 0; r < fit.rows; r += 1) {
+    for (let c = 0; c < fit.cols; c += 1) {
+      const x = startX + (c * fit.baseL);
+      const y = startY + (r * fit.baseW);
+      const overhang = x < settings.overhang || y < settings.overhang || (x + fit.baseL) > (settings.overhang + settings.palletL) || (y + fit.baseW) > (settings.overhang + settings.palletW);
+      const box = document.createElement('div');
+      box.className = `preview-box${overhang ? ' overhang' : ''}`;
+      box.style.left = `${4 + (x / zoneL) * 92}%`;
+      box.style.top = `${4 + (y / zoneW) * 92}%`;
+      box.style.width = `${(fit.baseL / zoneL) * 92}%`;
+      box.style.height = `${(fit.baseW / zoneW) * 92}%`;
+      if (fit.perLayer <= 16) box.innerHTML = `<span>${counter}</span>`;
+      counter += 1;
+      board.appendChild(box);
+    }
+  }
+
+  info.innerHTML = [
+    infoBox('Boxes On Hand', formatNum(row.boxes, 0), 'Current inventory'),
+    infoBox('Cases Per Layer', formatNum(fit.perLayer, 0), `${fit.cols} columns x ${fit.rows} rows`),
+    infoBox('Layers At Rack Height', formatNum(fit.layers, 0), 'Usable stack height'),
+    infoBox('Cases Per Position', formatNum(fit.casesPerPos, 0), '60-inch rack capacity'),
+    infoBox('Actual Positions', formatNum(row.actual60, 2), 'Real rack positions used'),
+    infoBox('Billable Positions', formatNum(row.bill72, 2), `${formatMoney(row.charge)} monthly`),
+    infoBox('Footprint Used', `${formatNum(fit.usedL)} x ${formatNum(fit.usedW)}`, fit.orientation),
+    infoBox('Overhang Used', `${formatNum(fit.overhangL)} x ${formatNum(fit.overhangW)}`, fit.fitsInsidePallet ? 'Fits inside pallet' : 'Uses allowed overhang')
+  ].join('');
+
+  narrative.innerHTML = `${row.product || row.sku} stacks ${formatNum(fit.perLayer, 0)} cases per layer and ${formatNum(fit.layers, 0)} layers high inside your ${formatNum(settings.rackHeight, 0)}" rack, giving ${formatNum(fit.casesPerPos, 0)} cases per actual position. The layer uses ${formatNum(fit.areaUtil, 1)}% of the pallet footprint.`;
+}
+
+function renderInvoice() {
+  const settings = getSettings();
+  const rows = state.computed.filter((row) => row.product || row.sku).slice().sort((a, b) => b.charge - a.charge);
+  const totals = rows.reduce((acc, row) => ({ actual: acc.actual + row.actual60, bill: acc.bill + row.bill72, charge: acc.charge + row.charge }), { actual: 0, bill: 0, charge: 0 });
+  const adjustedRate = settings.rackHeight ? settings.rate72 * (settings.billHeight / settings.rackHeight) : 0;
+  document.getElementById('invoiceCustomer').textContent = settings.customerName;
+  document.getElementById('invoiceLabel').textContent = settings.reportLabel;
+  document.getElementById('invoiceActual').textContent = formatNum(totals.actual, 2);
+  document.getElementById('invoiceBillable').textContent = formatNum(totals.bill, 2);
+  document.getElementById('invoiceRate').textContent = formatMoney(settings.rate72);
+  document.getElementById('invoiceTotal').textContent = formatMoney(totals.charge);
+  document.getElementById('invoiceNarrative').innerHTML = `<strong>${settings.customerName}</strong> uses <strong>${formatNum(totals.actual, 2)}</strong> actual ${formatNum(settings.rackHeight, 0)}" rack positions, which converts to <strong>${formatNum(totals.bill, 2)}</strong> billable ${formatNum(settings.billHeight, 0)}" positions at <strong>${formatMoney(settings.rate72)}</strong> each. Estimated monthly storage: <strong>${formatMoney(totals.charge)}</strong>. Reference internal ${formatNum(settings.rackHeight, 0)}" rate: <strong>${formatMoney(adjustedRate)}</strong>.`;
+  document.getElementById('invoiceFormula').innerHTML = `Billable Positions = Actual Positions x (${formatNum(settings.rackHeight, 0)} / ${formatNum(settings.billHeight, 0)})<br>Monthly Charge = Billable Positions x ${formatMoney(settings.rate72)}`;
+  const tbody = document.querySelector('#invoiceTable tbody');
+  tbody.innerHTML = '';
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty">No SKU data available.</td></tr>';
+    return;
+  }
+  rows.forEach((row) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${row.sku || ''}</td><td>${row.product || ''}</td><td>${formatNum(row.boxes, 0)}</td><td>${row.fit ? formatNum(row.fit.casesPerPos, 0) : '0'}</td><td>${formatNum(row.actual60, 2)}</td><td>${formatNum(row.bill72, 2)}</td><td>${formatMoney(row.charge)}</td><td><span class="tag ${row.auditClass}">${row.auditText}</span></td>`;
+    tr.addEventListener('click', () => selectRow(row.index, true));
+    tbody.appendChild(tr);
+  });
+}
+
+function collectData() {
+  return { settings: getSettings(), rows: Array.from(document.querySelectorAll('#skuTable tbody tr')).map(getRowInputs), selectedIndex: state.selectedIndex };
+}
+
+function saveData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(collectData()));
+  alert('Saved locally in this browser.');
+}
+
+function loadData() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) {
+    alert('No saved data found in this browser.');
+    return;
+  }
+  const parsed = JSON.parse(raw);
+  setSettings(parsed.settings || {});
+  state.selectedIndex = parsed.selectedIndex || 0;
+  renderRows(parsed.rows || []);
+}
+
+function renderRows(rows) {
+  document.querySelector('#skuTable tbody').innerHTML = '';
+  rows.forEach((row) => addRow(row, true));
+  recalc();
+}
+
+function resetToSeed() {
+  setSettings({ customerName: 'Customer Storage Estimate', reportLabel: 'Monthly Storage Review', palletL: 48, palletW: 40, overhang: 1, palletHeight: 5.5, rackHeight: 60, billHeight: 72, rate72: 15 });
+  state.selectedIndex = 0;
+  renderRows(seedData);
+}
+
+function clearAllRows() {
+  document.querySelector('#skuTable tbody').innerHTML = '';
+  state.computed = [];
+  recalc();
+}
+
+function exportCSV() {
+  const headers = [
+    'Product','SKU','Boxes','L (cm)','W (cm)','H (cm)','L (in)','W (in)','H (in)','Best Orientation','Footprint Used (in)','Fit Audit','Cases / Layer','Layers @ Rack Height','Cases / Position','Actual 60in Positions','72in Billable Positions','Monthly Charge','Pallet Area Utilization','Notes'
+  ];
+  const lines = [headers.join(',')];
+  state.computed.forEach((row) => {
+    lines.push([
+      row.product, row.sku, row.boxes, row.lcm, row.wcm, row.hcm,
+      row.lIn ? formatNum(row.lIn) : '', row.wIn ? formatNum(row.wIn) : '', row.hIn ? formatNum(row.hIn) : '',
+      row.fit ? row.fit.orientation : '', row.fit ? `${formatNum(row.fit.usedL)} x ${formatNum(row.fit.usedW)}` : '', row.auditText,
+      row.fit ? formatNum(row.fit.perLayer, 0) : '0', row.fit ? formatNum(row.fit.layers, 0) : '0', row.fit ? formatNum(row.fit.casesPerPos, 0) : '0',
+      formatNum(row.actual60, 2), formatNum(row.bill72, 2), formatMoney(row.charge), row.fit ? `${formatNum(row.fit.areaUtil, 1)}%` : '0%', row.notes
+    ].map(csvEsc).join(','));
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = 'pallet_position_storage_report_v3.csv';
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function openTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === name));
+  document.querySelectorAll('.tab-panel').forEach((panel) => panel.classList.toggle('active', panel.id === `tab-${name}`));
+}
+
+function printInvoice() {
+  openTab('invoice');
+  window.print();
+}
+
+function setImportStatus(text, tone) {
+  const el = document.getElementById('importStatus');
+  el.className = `status ${tone}`;
+  el.textContent = text;
+}
+
+function ensureXlsxLibrary(force = false) {
+  if (typeof XLSX !== 'undefined' && !force) {
+    state.xlsxReady = true;
+    setImportStatus('Excel import ready.', 'good');
+    return Promise.resolve(true);
+  }
+  if (state.xlsxPromise && !force) return state.xlsxPromise;
+  setImportStatus('Loading Excel import helper...', 'warn');
+  const sources = [
+    'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
+    'https://unpkg.com/xlsx/dist/xlsx.full.min.js'
+  ];
+  state.xlsxPromise = new Promise((resolve) => {
+    let index = 0;
+    const loadNext = () => {
+      if (typeof XLSX !== 'undefined') {
+        state.xlsxReady = true;
+        setImportStatus('Excel import ready.', 'good');
+        resolve(true);
+        return;
+      }
+      if (index >= sources.length) {
+        setImportStatus('Excel upload unavailable. CSV still works.', 'warn');
+        resolve(false);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = sources[index++];
+      script.onload = loadNext;
+      script.onerror = loadNext;
+      document.head.appendChild(script);
+    };
+    loadNext();
+  });
+  return state.xlsxPromise;
+}
+
+function normalizeHeader(header) {
+  return String(header || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+function valueFrom(record, aliases) {
+  const entries = Object.entries(record);
+  for (const alias of aliases) {
+    const match = entries.find(([key]) => normalizeHeader(key) === normalizeHeader(alias));
+    if (match) return match[1];
+  }
+  return '';
+}
+
+function parseDims(raw) {
+  const parts = String(raw || '').replace(/[^\dxX.]/g, '').split(/x/i).map(Number).filter((n) => Number.isFinite(n) && n > 0);
+  return { lcm: parts[0] || 0, wcm: parts[1] || 0, hcm: parts[2] || 0 };
+}
+
+function parseCsv(text) {
+  const rows = [];
+  let current = '';
+  let row = [];
+  let quoted = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    const next = text[i + 1];
+    if (ch === '"' && quoted && next === '"') {
+      current += '"';
+      i += 1;
+    } else if (ch === '"') {
+      quoted = !quoted;
+    } else if (ch === ',' && !quoted) {
+      row.push(current);
+      current = '';
+    } else if ((ch === '\n' || ch === '\r') && !quoted) {
+      if (ch === '\r' && next === '\n') i += 1;
+      row.push(current);
+      current = '';
+      if (row.some((value) => value !== '')) rows.push(row);
+      row = [];
+    } else {
+      current += ch;
+    }
+  }
+  if (current || row.length) {
+    row.push(current);
+    if (row.some((value) => value !== '')) rows.push(row);
+  }
+  if (!rows.length) return [];
+  const headers = rows[0];
+  return rows.slice(1).map((values) => Object.fromEntries(headers.map((header, i) => [header, values[i] ?? ''])));
+}
+
+function normalizeRows(records) {
+  return records.map((record) => {
+    const dims = parseDims(valueFrom(record, ['Dimensions (cm)', 'Dimensions', 'Dimension']));
+    const ship = valueFrom(record, ['SHIPPING TO', 'Shipping To']);
+    const units = valueFrom(record, ['No. of Units in a Master Carton', 'Units / Carton']);
+    return {
+      product: valueFrom(record, ['PRODUCT', 'Product']),
+      sku: valueFrom(record, ['SKU', 'Sku']),
+      boxes: toNum(valueFrom(record, ['Boxes is Stock', 'Boxes in Stock', 'Boxes', 'Cases'])),
+      lcm: dims.lcm || toNum(valueFrom(record, ['L (cm)', 'Length (cm)', 'Length'])),
+      wcm: dims.wcm || toNum(valueFrom(record, ['W (cm)', 'Width (cm)', 'Width'])),
+      hcm: dims.hcm || toNum(valueFrom(record, ['H (cm)', 'Height (cm)', 'Height'])),
+      notes: [ship ? `Ship to: ${ship}` : '', units ? `Units/carton: ${units}` : ''].filter(Boolean).join(' | ')
+    };
+  }).filter((row) => row.product || row.sku || row.boxes || row.lcm || row.wcm || row.hcm);
+}
+
+async function readSpreadsheetFile(file) {
+  if (typeof file.arrayBuffer === 'function') {
+    const buffer = await file.arrayBuffer();
+    return buffer instanceof ArrayBuffer ? buffer : new Uint8Array(buffer).buffer;
+  }
+
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error('FileReader failed.'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+async function handleFileUpload(file) {
+  if (!file) return;
+  try {
+    let records = [];
+    if (file.name.toLowerCase().endsWith('.csv')) {
+      records = parseCsv(await file.text());
+    } else {
+      const ready = await ensureXlsxLibrary();
+      if (!ready || typeof XLSX === 'undefined') {
+        alert('Excel parsing is unavailable. Try a CSV export instead.');
+        return;
+      }
+      const buffer = await readSpreadsheetFile(file);
+      const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
+      records = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: '', raw: false });
+    }
+    const rows = normalizeRows(records);
+    if (!rows.length) {
+      setImportStatus('Upload completed, but no usable rows were found.', 'bad');
+      alert('The file did not contain recognizable SKU rows.');
+      return;
+    }
+    state.selectedIndex = 0;
+    renderRows(rows);
+    setImportStatus(`Imported ${rows.length} rows from ${file.name}.`, 'good');
+  } catch (error) {
+    console.error(error);
+    setImportStatus(`Upload failed: ${error && error.message ? error.message : 'unknown error'}`, 'bad');
+    alert('The file could not be imported.');
+  }
+}
+
+['customerName', 'reportLabel', 'palletL', 'palletW', 'overhang', 'palletHeight', 'rackHeight', 'billHeight', 'rate72'].forEach((id) => {
+  document.getElementById(id).addEventListener('input', recalc);
+});
+document.querySelectorAll('.tab-btn').forEach((btn) => btn.addEventListener('click', () => openTab(btn.dataset.tab)));
+document.getElementById('previewPicker').addEventListener('change', (event) => selectRow(toNum(event.target.value), false));
+document.getElementById('uploadBtn').addEventListener('click', () => document.getElementById('fileInput').click());
+document.getElementById('reloadImportBtn').addEventListener('click', () => { state.xlsxPromise = null; ensureXlsxLibrary(true); });
+document.getElementById('fileInput').addEventListener('change', async (event) => { await handleFileUpload(event.target.files[0]); event.target.value = ''; });
+ensureXlsxLibrary();
+resetToSeed();
+</script>
+</body>
+</html>
+
