@@ -492,8 +492,11 @@
       <div class="card metric"><div class="label">Stock Boxes</div><div class="value" id="intakeBoxCount">0</div></div>
     </div>
 
+    <div id="calcSyncStatus" class="status warn" style="display:inline-flex;max-width:100%;margin-bottom:14px;">Upload item master and stock data to calculate pallet positions and invoice totals.</div>
+
     <div class="toolbar">
       <button type="button" class="primary" id="buildFromIntakeBtn">Build Calculator Rows</button>
+      <button type="button" class="ghost" id="buildInvoiceBtn">Build And Open Invoice</button>
       <button type="button" id="loadSeedIntoIntakeBtn">Load Sample Into Intake</button>
       <button type="button" id="addItemMasterBtn">Add Item SKU</button>
       <button type="button" id="addStockRowBtn">Add Stock Row</button>
@@ -737,7 +740,9 @@ const state = {
   xlsxReady: typeof XLSX !== 'undefined',
   xlsxPromise: null,
   itemMaster: [],
-  stockRows: []
+  stockRows: [],
+  intakeDirty: false,
+  intakeSyncTimer: null
 };
 
 function toNum(v) {
@@ -901,12 +906,12 @@ function renderItemMasterTable() {
   state.itemMaster.forEach((row, index) => {
     const tr = document.createElement('tr');
     const fields = [
-      createBoundInput(row.product || '', (value) => { state.itemMaster[index].product = value; }),
-      createBoundInput(row.sku || '', (value) => { state.itemMaster[index].sku = value; updateIntakeSummary(); }),
-      createBoundInput(row.lcm ?? 0, (value) => { state.itemMaster[index].lcm = toNum(value); updateIntakeSummary(); }, 'number', '0.01'),
-      createBoundInput(row.wcm ?? 0, (value) => { state.itemMaster[index].wcm = toNum(value); updateIntakeSummary(); }, 'number', '0.01'),
-      createBoundInput(row.hcm ?? 0, (value) => { state.itemMaster[index].hcm = toNum(value); updateIntakeSummary(); }, 'number', '0.01'),
-      createBoundInput(row.notes || '', (value) => { state.itemMaster[index].notes = value; })
+      createBoundInput(row.product || '', (value) => { state.itemMaster[index].product = value; updateIntakeSummary(); scheduleIntakeBuild('item master edit'); }),
+      createBoundInput(row.sku || '', (value) => { state.itemMaster[index].sku = value; updateIntakeSummary(); scheduleIntakeBuild('item master edit'); }),
+      createBoundInput(row.lcm ?? 0, (value) => { state.itemMaster[index].lcm = toNum(value); updateIntakeSummary(); scheduleIntakeBuild('item master edit'); }, 'number', '0.01'),
+      createBoundInput(row.wcm ?? 0, (value) => { state.itemMaster[index].wcm = toNum(value); updateIntakeSummary(); scheduleIntakeBuild('item master edit'); }, 'number', '0.01'),
+      createBoundInput(row.hcm ?? 0, (value) => { state.itemMaster[index].hcm = toNum(value); updateIntakeSummary(); scheduleIntakeBuild('item master edit'); }, 'number', '0.01'),
+      createBoundInput(row.notes || '', (value) => { state.itemMaster[index].notes = value; updateIntakeSummary(); scheduleIntakeBuild('item master edit'); })
     ];
     fields.forEach((input) => {
       const td = document.createElement('td');
@@ -919,6 +924,7 @@ function renderItemMasterTable() {
       state.itemMaster.splice(index, 1);
       renderItemMasterTable();
       updateIntakeSummary();
+      scheduleIntakeBuild('item master delete');
     });
     tr.appendChild(deleteTd);
     tbody.appendChild(tr);
@@ -936,10 +942,10 @@ function renderStockTable() {
   state.stockRows.forEach((row, index) => {
     const tr = document.createElement('tr');
     const fields = [
-      createBoundInput(row.sku || '', (value) => { state.stockRows[index].sku = value; updateIntakeSummary(); }),
-      createBoundInput(row.product || '', (value) => { state.stockRows[index].product = value; }),
-      createBoundInput(row.boxes ?? 0, (value) => { state.stockRows[index].boxes = toNum(value); updateIntakeSummary(); }, 'number', '1'),
-      createBoundInput(row.notes || '', (value) => { state.stockRows[index].notes = value; })
+      createBoundInput(row.sku || '', (value) => { state.stockRows[index].sku = value; updateIntakeSummary(); scheduleIntakeBuild('stock edit'); }),
+      createBoundInput(row.product || '', (value) => { state.stockRows[index].product = value; updateIntakeSummary(); scheduleIntakeBuild('stock edit'); }),
+      createBoundInput(row.boxes ?? 0, (value) => { state.stockRows[index].boxes = toNum(value); updateIntakeSummary(); scheduleIntakeBuild('stock edit'); }, 'number', '1'),
+      createBoundInput(row.notes || '', (value) => { state.stockRows[index].notes = value; updateIntakeSummary(); scheduleIntakeBuild('stock edit'); })
     ];
     fields.forEach((input) => {
       const td = document.createElement('td');
@@ -952,6 +958,7 @@ function renderStockTable() {
       state.stockRows.splice(index, 1);
       renderStockTable();
       updateIntakeSummary();
+      scheduleIntakeBuild('stock delete');
     });
     tr.appendChild(deleteTd);
     tbody.appendChild(tr);
@@ -992,9 +999,59 @@ function updateIntakeSummary() {
   document.getElementById('unmatchedSkuCount').textContent = formatNum(unmatched, 0);
   document.getElementById('intakeReadyCount').textContent = formatNum(ready, 0);
   document.getElementById('intakeBoxCount').textContent = formatNum(stockBoxes, 0);
+
+  const hasItems = state.itemMaster.some((row) => row.sku || row.product || row.lcm || row.wcm || row.hcm);
+  const hasStock = state.stockRows.some((row) => row.sku || row.product || row.boxes);
+  const missingDims = Math.max(matched - ready, 0);
+  const readyLabel = `${formatNum(ready, 0)} ready SKU${ready === 1 ? '' : 's'}`;
+  const missingLabel = missingDims ? ` ${formatNum(missingDims, 0)} matched SKU${missingDims === 1 ? '' : 's'} still need dimensions.` : '';
+
+  if (!hasItems && !hasStock) {
+    setCalcSyncStatus('Upload item master and stock data to calculate pallet positions and invoice totals.', 'warn');
+  } else if (!hasStock) {
+    setCalcSyncStatus('Upload a stock report or enter box counts online to build the calculator and invoice.', 'warn');
+  } else if (!hasItems) {
+    setCalcSyncStatus('Stock is loaded. Upload an item master to add carton dimensions and billing calculations.', 'warn');
+  } else if (!matched) {
+    setCalcSyncStatus('Stock is loaded, but no SKUs currently match the item master.', 'bad');
+  } else if (state.intakeDirty) {
+    setCalcSyncStatus(`Intake changed. Syncing calculator and invoice totals for ${readyLabel}.${missingLabel}`.trim(), 'warn');
+  } else {
+    setCalcSyncStatus(`Calculator synced. ${readyLabel} covering ${formatNum(stockBoxes, 0)} boxes are ready for billing.${missingLabel}`.trim(), ready ? 'good' : 'warn');
+  }
 }
 
-function buildCalculatorRowsFromIntake(openCalculator = true) {
+function setCalcSyncStatus(text, tone) {
+  const el = document.getElementById('calcSyncStatus');
+  if (!el) return;
+  el.className = `status ${tone}`;
+  el.textContent = text;
+}
+
+function scheduleIntakeBuild(reason = 'intake update') {
+  state.intakeDirty = true;
+  if (state.intakeSyncTimer) {
+    window.clearTimeout(state.intakeSyncTimer);
+    state.intakeSyncTimer = null;
+  }
+
+  const hasStock = state.stockRows.some((row) => row.sku || row.product || row.boxes);
+  if (!hasStock) {
+    setCalcSyncStatus('Stock rows were cleared. Add or upload stock to rebuild the calculator and invoice.', 'warn');
+    return;
+  }
+
+  setCalcSyncStatus('Intake updated. Rebuilding calculator and invoice totals...', 'warn');
+  state.intakeSyncTimer = window.setTimeout(() => {
+    buildCalculatorRowsFromIntake({ openCalculator: false, silent: true, source: reason });
+  }, 240);
+}
+
+function buildCalculatorRowsFromIntake(options = {}) {
+  const config = typeof options === 'boolean' ? { openCalculator: options } : options;
+  const openCalculator = config.openCalculator !== false;
+  const openTarget = config.openTarget || '';
+  const silent = Boolean(config.silent);
   const itemMap = new Map();
   state.itemMaster.forEach((row) => {
     const key = normalizeSku(row.sku);
@@ -1022,13 +1079,22 @@ function buildCalculatorRowsFromIntake(openCalculator = true) {
     });
 
   if (!mergedRows.length) {
-    alert('Load item master and stock data first, then build the calculator rows.');
-    return;
+    if (!silent) alert('Load stock data first, then build the calculator rows.');
+    setCalcSyncStatus('No stock rows are available to build the calculator yet.', 'warn');
+    return false;
   }
 
   renderRows(mergedRows);
+  state.intakeDirty = false;
+  if (state.intakeSyncTimer) {
+    window.clearTimeout(state.intakeSyncTimer);
+    state.intakeSyncTimer = null;
+  }
+  updateIntakeSummary();
   setImportStatus(`Built ${mergedRows.length} calculator rows from intake data.`, 'good');
-  if (openCalculator) openTab('calc');
+  if (openTarget) openTab(openTarget);
+  else if (openCalculator) openTab('calc');
+  return true;
 }
 
 function orientations([a, b, c]) {
@@ -1312,7 +1378,8 @@ function renderInvoice() {
   const tbody = document.querySelector('#invoiceTable tbody');
   tbody.innerHTML = '';
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="8" class="empty">No SKU data available.</td></tr>';
+    const hasStock = state.stockRows.some((row) => row.sku || row.product || row.boxes);
+    tbody.innerHTML = `<tr><td colspan="8" class="empty">${hasStock ? 'No billable calculator rows yet. Check Data Intake or carton dimensions, then rebuild.' : 'No SKU data available.'}</td></tr>`;
     return;
   }
   rows.forEach((row) => {
@@ -1351,6 +1418,7 @@ function loadData() {
   state.stockRows = Array.isArray(parsed.stockRows) ? parsed.stockRows : stockRowsFromCalculatorRows(parsed.rows || []);
   renderItemMasterTable();
   renderStockTable();
+  state.intakeDirty = false;
   updateIntakeSummary();
   renderRows(parsed.rows || []);
 }
@@ -1366,6 +1434,7 @@ function resetToSeed() {
   state.selectedIndex = 0;
   state.itemMaster = itemRowsFromCalculatorRows(seedData);
   state.stockRows = stockRowsFromCalculatorRows(seedData);
+  state.intakeDirty = false;
   renderItemMasterTable();
   renderStockTable();
   updateIntakeSummary();
@@ -1377,6 +1446,7 @@ function resetToSeed() {
 function clearAllRows() {
   document.querySelector('#skuTable tbody').innerHTML = '';
   state.computed = [];
+  state.intakeDirty = false;
   recalc();
 }
 
@@ -1404,6 +1474,9 @@ function exportCSV() {
 }
 
 function openTab(name) {
+  if (['calc', 'preview', 'invoice'].includes(name) && (state.intakeDirty || !state.computed.length)) {
+    buildCalculatorRowsFromIntake({ openCalculator: false, silent: true });
+  }
   document.querySelectorAll('.tab-btn').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === name));
   document.querySelectorAll('.tab-panel').forEach((panel) => panel.classList.toggle('active', panel.id === `tab-${name}`));
 }
@@ -1607,6 +1680,7 @@ async function handleFileUpload(file) {
     state.stockRows = stockRowsFromCalculatorRows(rows);
     renderItemMasterTable();
     renderStockTable();
+    state.intakeDirty = false;
     updateIntakeSummary();
     renderRows(rows);
     setImportStatus(`Imported ${rows.length} rows from ${file.name}.`, 'good');
@@ -1631,6 +1705,7 @@ async function handleItemMasterUpload(file) {
     renderItemMasterTable();
     updateIntakeSummary();
     setItemImportStatus(`Imported ${rows.length} item SKUs from ${file.name}.`, 'good');
+    scheduleIntakeBuild('item master upload');
   } catch (error) {
     console.error(error);
     setItemImportStatus(`Upload failed: ${error && error.message ? error.message : 'unknown error'}`, 'bad');
@@ -1652,6 +1727,7 @@ async function handleStockUpload(file) {
     renderStockTable();
     updateIntakeSummary();
     setStockImportStatus(`Imported ${rows.length} stock lines from ${file.name}.`, 'good');
+    scheduleIntakeBuild('stock upload');
   } catch (error) {
     console.error(error);
     setStockImportStatus(`Upload failed: ${error && error.message ? error.message : 'unknown error'}`, 'bad');
@@ -1671,29 +1747,36 @@ document.getElementById('itemUploadBtn').addEventListener('click', () => documen
 document.getElementById('stockUploadBtn').addEventListener('click', () => document.getElementById('stockFileInput').click());
 document.getElementById('itemFileInput').addEventListener('change', async (event) => { await handleItemMasterUpload(event.target.files[0]); event.target.value = ''; });
 document.getElementById('stockFileInput').addEventListener('change', async (event) => { await handleStockUpload(event.target.files[0]); event.target.value = ''; });
-document.getElementById('buildFromIntakeBtn').addEventListener('click', () => buildCalculatorRowsFromIntake(true));
+document.getElementById('buildFromIntakeBtn').addEventListener('click', () => buildCalculatorRowsFromIntake({ openCalculator: true }));
+document.getElementById('buildInvoiceBtn').addEventListener('click', () => buildCalculatorRowsFromIntake({ openCalculator: false, openTarget: 'invoice' }));
 document.getElementById('loadSeedIntoIntakeBtn').addEventListener('click', resetToSeed);
 document.getElementById('addItemMasterBtn').addEventListener('click', () => {
   state.itemMaster.push({ product: '', sku: '', lcm: 0, wcm: 0, hcm: 0, notes: '' });
   renderItemMasterTable();
   updateIntakeSummary();
+  scheduleIntakeBuild('item master add');
 });
 document.getElementById('addStockRowBtn').addEventListener('click', () => {
   state.stockRows.push({ sku: '', product: '', boxes: 0, notes: 'Manual web entry' });
   renderStockTable();
   updateIntakeSummary();
+  scheduleIntakeBuild('stock add');
 });
 document.getElementById('clearItemMasterBtn').addEventListener('click', () => {
   state.itemMaster = [];
   renderItemMasterTable();
   updateIntakeSummary();
   setItemImportStatus('Item master cleared.', 'warn');
+  scheduleIntakeBuild('item master clear');
 });
 document.getElementById('clearStockBtn').addEventListener('click', () => {
   state.stockRows = [];
   renderStockTable();
+  renderRows([]);
+  state.intakeDirty = false;
   updateIntakeSummary();
   setStockImportStatus('Stock rows cleared.', 'warn');
+  setCalcSyncStatus('Stock rows were cleared. Calculator and invoice totals are reset until new stock is loaded.', 'warn');
 });
 ensureXlsxLibrary();
 resetToSeed();
